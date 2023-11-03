@@ -1,5 +1,6 @@
 use std::env;
 
+mod algorithms;
 mod graph;
 mod input;
 
