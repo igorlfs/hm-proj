@@ -1,9 +1,15 @@
 [package]
 name = "te"
 version = "0.1.0"
+authors = [
+  "Igor Lacerda <igorlfs@ufmg.br>",
+  "Vinicius Gomes <vinisilvag@ufmg.br>",
+]
 edition = "2021"
+description = "An CLI tool to execute some heuristics for the Graph Coloring Problem (GCP)."
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+clap = { version = "4.4.8", features = ["derive"] }
 rand = "0.8.5"
