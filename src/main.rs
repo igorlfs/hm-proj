@@ -11,6 +11,8 @@ use clap::Parser;
 use std::time::{Duration, Instant};
 
 fn main() {
+    // O uso aqui passa a ser ```cargo run -- -a grasp -p "instance-path"```
+    // ```cargo run -- -h``` fala mais informações
     let Args { algorithm, path } = Args::parse();
 
     if let Ok(Some(graph)) = input::read_graph_from_file(path.as_str()) {
