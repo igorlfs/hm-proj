@@ -1,21 +1,35 @@
-use std::env;
-
 mod algorithms;
+mod args;
 mod graph;
 mod input;
 
+use args::{Algorithm, Args};
+use clap::Parser;
+use std::process;
+use std::time::{Duration, Instant};
+
 fn main() {
-    let args: Vec<String> = env::args().collect();
+    // O uso aqui passa a ser ```cargo run -- -a grasp -p "instance-path"```
+    // ```cargo run -- -h``` fala mais informações
+    let Args { algorithm, path } = Args::parse();
 
-    if args.len() < 2 {
-        // A ideia poderia ser: você especifica um arquivo ou tamanho para gerar aleatório e rodar
-        eprintln!("Give a path to a file");
-        return;
-    }
+    if let Ok(Some(graph)) = input::read_graph_from_file(path.as_str()) {
+        let start: Instant = Instant::now();
 
-    if let Ok(Some(graph)) = input::read_graph_from_file(args[1].as_str()) {
-        // TODO
+        // A gente pode padronizar o retorno de todos os algoritmos e retornar, por exemplo, o número de cores usada e a cor de cada vértice e retornar pra esse match
+        match algorithm {
+            Algorithm::Genetic => panic!("Genetic not implemented yet"),
+            Algorithm::Grasp => panic!("Grasp not implemented yet"),
+            Algorithm::GraspPR => panic!("Grasp with PR not implemented yet"),
+        };
+
+        let duration: Duration = start.elapsed();
+
+        // println!("Number of colors used: {:?}", colors_used);
+        // println!("Color assignment: {:?}", color_assignment);
+        // println!("Duration: {:?}", duration);
     } else {
-        eprintln!("Input file doesn't follow the specification");
+        eprintln!("Failed to open the specified instance: {path}");
+        process::exit(1);
     }
 }
