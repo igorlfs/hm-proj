@@ -1,12 +1,12 @@
 [package]
-name = "te"
+name = "gcp-heuristics"
 version = "0.1.0"
 authors = [
   "Igor Lacerda <igorlfs@ufmg.br>",
   "Vinicius Gomes <vinisilvag@ufmg.br>",
 ]
 edition = "2021"
-description = "An CLI tool to execute some heuristics for the Graph Coloring Problem (GCP)."
+description = "A CLI tool to execute heuristics for the Graph Coloring Problem (GCP)."
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

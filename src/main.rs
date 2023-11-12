@@ -3,11 +3,9 @@ mod args;
 mod graph;
 mod input;
 
-use std::process;
-
 use args::{Algorithm, Args};
 use clap::Parser;
-
+use std::process;
 use std::time::{Duration, Instant};
 
 fn main() {
@@ -31,7 +29,7 @@ fn main() {
         // println!("Color assignment: {:?}", color_assignment);
         // println!("Duration: {:?}", duration);
     } else {
-        eprintln!("Failed to open the specified instance");
+        eprintln!("Failed to open the specified instance: {path}");
         process::exit(1);
     }
 }
