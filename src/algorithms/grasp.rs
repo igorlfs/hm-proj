@@ -74,7 +74,7 @@ pub fn grasp(
 
             vertex_set.retain(|vertex| !class_list[num_color_classes - 1].contains(vertex));
         }
-        // TODO ImprovePhase(V,E,i,{V1,...,Vi})
+        improve_phase(&graph, &mut num_color_classes, &mut class_list);
         if num_color_classes < num_colors {
             best_class_list = class_list;
             num_colors = num_color_classes;
@@ -125,6 +125,82 @@ fn assign_color(
         class_list[num_color_classes - 1] = current_color_class;
         *min_num_edges_remaining = remaining_edges;
     }
+}
+
+fn improve_phase(graph: &Graph, num_classes: &mut usize, class_list: &mut Vec<Vec<usize>>) {
+    let mut num_forbidden = 0;
+
+    while num_forbidden == 0 {
+        let mut lenghts: Vec<(usize, usize)> = class_list
+            .iter()
+            .enumerate()
+            .map(|(index, class)| (index, class.len()))
+            .take(*num_classes)
+            .collect();
+
+        lenghts.sort_by(|lhs, rhs| rhs.1.cmp(&lhs.1));
+
+        let smallest_lengths: Vec<usize> = lenghts
+            .iter()
+            .rev()
+            .take(2)
+            .map(|(index, _)| *index)
+            .collect();
+
+        let mut combined_class: Vec<usize> = vec![];
+
+        for index in smallest_lengths.iter() {
+            combined_class.append(&mut class_list[*index].clone());
+        }
+
+        let mut new_classes: Vec<Vec<usize>> = vec![];
+
+        new_classes.push(combined_class);
+
+        for (index, class) in class_list.iter().enumerate() {
+            if index == smallest_lengths[0] || index == smallest_lengths[1] || class.is_empty() {
+                continue;
+            }
+            new_classes.push(class.clone());
+        }
+
+        // TODO localSearch(k,s)
+
+        num_forbidden = count_forbidden(graph, &new_classes);
+
+        if num_forbidden == 0 {
+            *num_classes = new_classes.len();
+            *class_list = new_classes;
+        }
+    }
+
+    let num_vertices = graph.num_vertices();
+    class_list.resize(num_vertices, Vec::new());
+}
+
+fn get_coloring_from_class_list(num_vertices: usize, class_list: &[Vec<usize>]) -> Vec<usize> {
+    let mut coloring: Vec<usize> = vec![0; num_vertices];
+    for (i, class) in class_list.iter().enumerate() {
+        for vertex in class {
+            coloring[*vertex] = i + 1;
+        }
+    }
+    coloring
+}
+
+fn count_forbidden(graph: &Graph, class_list: &[Vec<usize>]) -> usize {
+    let num_vertices = graph.num_vertices();
+    let adjacency_matrix = graph.adjacency_matrix();
+    let coloring = get_coloring_from_class_list(num_vertices, class_list);
+    let mut count = 0;
+    for (i, row) in adjacency_matrix.iter().enumerate() {
+        for j in i..row.len() {
+            if adjacency_matrix[i][j] && coloring[i] == coloring[j] {
+                count += 1;
+            }
+        }
+    }
+    count
 }
 
 #[cfg(test)]
@@ -191,9 +267,7 @@ mod tests {
         if let Ok(Some(graph)) = input::read_graph_from_file("data/myc/myciel4.col") {
             let adjacency_matrix = graph.adjacency_matrix();
             let num_vertices = graph.num_vertices();
-            let (_num_colors, class_colors) = grasp(graph, 10, 5, 5);
-
-            // TODO compare num_colors with an instance whose chromatic number is known
+            let (_, class_colors) = grasp(graph, 10, 5, 5);
 
             let mut coloring: Vec<usize> = vec![0; num_vertices];
 
@@ -216,5 +290,24 @@ mod tests {
         } else {
             panic!("The file containing the test graph is missing")
         }
+    }
+
+    #[test]
+    fn test_count_forbidden() {
+        // The complete graph
+        let mut graph = Graph::new(5);
+        let adjacency_matrix = vec![
+            vec![false, true, true, true, true],
+            vec![true, false, true, true, true],
+            vec![true, true, false, true, true],
+            vec![true, true, true, false, true],
+            vec![true, true, true, true, false],
+        ];
+        let color_classes = vec![vec![0], vec![1], vec![2, 3, 4]];
+
+        graph.add_edges_from_matrix(adjacency_matrix);
+        let forbidden = count_forbidden(&graph, &color_classes);
+
+        assert_eq!(forbidden, 3);
     }
 }

@@ -57,6 +57,18 @@ impl Graph {
             Vec::new()
         }
     }
+
+    #[cfg(test)]
+    pub fn add_edges_from_matrix(&mut self, adjacency_matrix: Vec<Vec<bool>>) {
+        self.num_vertices = adjacency_matrix.len();
+        for (i, line) in adjacency_matrix.iter().enumerate() {
+            for (j, cell) in line.iter().enumerate() {
+                if *cell {
+                    self.add_edge(i, j);
+                }
+            }
+        }
+    }
 }
 
 #[cfg(test)]
