@@ -1,5 +1,6 @@
 use crate::graph::Graph;
 use rand::seq::SliceRandom;
+use std::collections::HashSet;
 
 /// Given a `graph`, get (at most) `n` indexes of the higher degree vertices in the subgraph induced by
 /// `subset`. If `list` is provided, don't use the induced subgraph and, instead, from the vertices
@@ -164,9 +165,7 @@ fn improve_phase(graph: &Graph, num_classes: &mut usize, class_list: &mut Vec<Ve
             new_classes.push(class.clone());
         }
 
-        // TODO localSearch(k,s)
-
-        num_forbidden = count_forbidden(graph, &new_classes);
+        num_forbidden = local_search(graph, &mut new_classes);
 
         if num_forbidden == 0 {
             *num_classes = new_classes.len();
@@ -188,19 +187,92 @@ fn get_coloring_from_class_list(num_vertices: usize, class_list: &[Vec<usize>]) 
     coloring
 }
 
-fn count_forbidden(graph: &Graph, class_list: &[Vec<usize>]) -> usize {
+/// Counts the number of forbidden edges in `graph` according to `coloring`.
+///
+/// Save the corresponding vertices in a set.
+fn get_forbidden(graph: &Graph, class_list: &[Vec<usize>]) -> (usize, HashSet<usize>) {
     let num_vertices = graph.num_vertices();
     let adjacency_matrix = graph.adjacency_matrix();
     let coloring = get_coloring_from_class_list(num_vertices, class_list);
     let mut count = 0;
+    let mut forbidden = HashSet::new();
     for (i, row) in adjacency_matrix.iter().enumerate() {
         for j in i..row.len() {
             if adjacency_matrix[i][j] && coloring[i] == coloring[j] {
                 count += 1;
+                forbidden.insert(i);
+                forbidden.insert(j);
             }
         }
     }
+    (count, forbidden)
+}
+
+/// Counts the number of forbidden edges from `vertex` in `graph` according to `coloring`.
+fn count_forbidden_per_vertex(graph: &Graph, coloring: &[usize], vertex: usize) -> usize {
+    let num_vertices = graph.num_vertices();
+    let adjacency_matrix = graph.adjacency_matrix();
+    let mut count = 0;
+    for i in 0..num_vertices {
+        if adjacency_matrix[vertex][i] && coloring[i] == coloring[vertex] {
+            count += 1;
+        }
+    }
     count
+}
+
+/// Applies o local search for `class_list` according to `graph`.
+///
+/// Returns the number of edges that are still forbidden.
+fn local_search(graph: &Graph, class_list: &mut Vec<Vec<usize>>) -> usize {
+    let no_improvement_ceil = graph.num_vertices() / 2;
+    let (mut forbidden_count, mut forbidden_set) = get_forbidden(graph, class_list);
+    let mut forbidden_vertices: Vec<usize> = forbidden_set.into_iter().collect();
+    // We use this variable to control how many iterations we can go by without improvement
+    let mut no_improvement = 0;
+
+    while forbidden_count > 0 && no_improvement < no_improvement_ceil {
+        // Randomly choose an illegal vertex (i.e., one that is colored with the same color as an adjacent vertex).
+
+        // Since forbidden_count > 0 we can unwrap
+        let vertex = forbidden_vertices.choose(&mut rand::thread_rng()).unwrap();
+        let mut coloring = get_coloring_from_class_list(graph.num_vertices(), class_list);
+        let mut best_count = count_forbidden_per_vertex(graph, &coloring, *vertex);
+        let original_count = best_count;
+        let mut best_color = coloring[*vertex];
+        let original_color = best_color;
+
+        // Make all possible attempts to switch v to a different color to improve the current value of f(s).
+
+        // Colors are 1-indexed
+        for i in 1..class_list.len() + 1 {
+            coloring[*vertex] = i;
+            let new_count = count_forbidden_per_vertex(graph, &coloring, *vertex);
+            if new_count < best_count {
+                best_count = new_count;
+                best_color = i;
+            }
+        }
+
+        if best_count < original_count {
+            no_improvement = 0;
+
+            // Updating class_list
+            let original_index_in_class_list = class_list[original_color - 1]
+                .iter()
+                .position(|x| *x == *vertex)
+                .unwrap();
+            class_list[original_color - 1].remove(original_index_in_class_list);
+            class_list[best_color - 1].push(*vertex);
+
+            (forbidden_count, forbidden_set) = get_forbidden(graph, class_list);
+            forbidden_vertices = forbidden_set.into_iter().collect();
+        } else {
+            no_improvement += 1;
+        }
+    }
+
+    forbidden_count
 }
 
 #[cfg(test)]
@@ -293,7 +365,7 @@ mod tests {
     }
 
     #[test]
-    fn test_count_forbidden() {
+    fn test_get_forbidden() {
         // The complete graph
         let mut graph = Graph::new(5);
         let adjacency_matrix = vec![
@@ -306,8 +378,28 @@ mod tests {
         let color_classes = vec![vec![0], vec![1], vec![2, 3, 4]];
 
         graph.add_edges_from_matrix(adjacency_matrix);
-        let forbidden = count_forbidden(&graph, &color_classes);
+        let (count, forbidden) = get_forbidden(&graph, &color_classes);
 
-        assert_eq!(forbidden, 3);
+        assert_eq!(forbidden, HashSet::from([2, 3, 4]));
+        assert_eq!(count, 3)
+    }
+
+    #[test]
+    fn test_local_search() {
+        // Basically a linked list colored as 1---2---2---3
+        let mut graph = Graph::new(4);
+        let adjacency_matrix = vec![
+            vec![false, true, false, false],
+            vec![true, false, true, false],
+            vec![false, true, false, true],
+            vec![false, false, true, false],
+        ];
+        let mut color_classes = vec![vec![0], vec![1, 2], vec![3]];
+
+        graph.add_edges_from_matrix(adjacency_matrix);
+
+        let num_forbidden = local_search(&graph, &mut color_classes);
+
+        assert_eq!(num_forbidden, 0);
     }
 }
