@@ -1,5 +1,6 @@
 use crate::graph::Graph;
 
+pub mod genetic;
 pub mod grasp;
 pub mod grasp_pr;
 
