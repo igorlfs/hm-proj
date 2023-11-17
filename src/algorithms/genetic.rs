@@ -102,12 +102,12 @@ fn select(
 ) -> (Vec<usize>, Vec<usize>) {
     let mut rng = rand::thread_rng();
     let limit = (population_size as f64 * 0.2).floor() as usize;
-    let mut p1 = rng.gen_range(0..limit);
-    let mut p2 = rng.gen_range(0..limit);
+
+    let p1 = rng.gen_range(0..=limit);
+    let mut p2 = rng.gen_range(0..=limit);
 
     while p1 == p2 {
-        p1 = rng.gen_range(0..limit);
-        p2 = rng.gen_range(0..limit);
+        p2 = rng.gen_range(0..=limit);
     }
 
     (population[p1].1.clone(), population[p2].1.clone())
@@ -153,7 +153,7 @@ fn replace(population: &mut Vec<(usize, Vec<usize>)>, population_size: usize) {
 }
 
 pub fn genetic(
-    graph: Graph,
+    graph: &Graph,
     generations: usize,
     population_size: usize,
     offsprings_per_generation: usize,
@@ -203,11 +203,172 @@ mod tests {
     use crate::input;
 
     #[test]
+    fn test_count_colors() {
+        assert_eq!(count_colors(&vec![1]), 1);
+        assert_eq!(count_colors(&vec![3, 1, 6, 6, 1, 5]), 4);
+        assert_eq!(count_colors(&vec![2, 1, 3, 1, 1, 4, 5, 10, 4, 3, 3]), 6);
+        assert_eq!(count_colors(&vec![]), 0);
+    }
+
+    #[test]
+    fn test_valid_color_assignment() {
+        let mut graph = Graph::new(4);
+        graph.add_edge(0, 1);
+        graph.add_edge(0, 2);
+        graph.add_edge(1, 2);
+        graph.add_edge(2, 3);
+
+        assert_eq!(valid_color_assignment(&graph, &vec![1, 2, 3, 1], 2), true);
+        assert_eq!(valid_color_assignment(&graph, &vec![1, 2, 2, 1], 2), false);
+    }
+
+    #[test]
+    fn test_coloring_upper_bound() {
+        let mut g1 = Graph::new(4);
+        g1.add_edge(0, 1);
+        g1.add_edge(0, 2);
+        g1.add_edge(1, 2);
+        g1.add_edge(2, 3);
+
+        assert_eq!(coloring_upper_bound(&g1), 4);
+
+        if let Ok(Some(g2)) = input::read_graph_from_file("data/myc/myciel3.col") {
+            assert_eq!(coloring_upper_bound(&g2), 6);
+        } else {
+            panic!("The file containing the test graph is missing")
+        }
+    }
+
+    #[test]
+    fn test_generate_individual() {
+        if let Ok(Some(graph)) = input::read_graph_from_file("data/myc/myciel3.col") {
+            let upper_bound = coloring_upper_bound(&graph);
+
+            assert_eq!(upper_bound, 6);
+
+            let individual = generate_individual(&graph, upper_bound);
+
+            for i in 0..graph.num_vertices() {
+                assert_eq!(valid_color_assignment(&graph, &individual, i), true)
+            }
+        } else {
+            panic!("The file containing the test graph is missing")
+        }
+    }
+
+    #[test]
+    fn test_mutate() {
+        if let Ok(Some(graph)) = input::read_graph_from_file("data/myc/myciel3.col") {
+            let upper_bound = coloring_upper_bound(&graph);
+
+            assert_eq!(upper_bound, 6);
+
+            let mut individual = generate_individual(&graph, upper_bound);
+
+            for i in 0..graph.num_vertices() {
+                assert_eq!(valid_color_assignment(&graph, &individual, i), true)
+            }
+
+            // A little higher mutation probability just to ensure that some vertex actually change
+            mutate(&graph, &mut individual, upper_bound, &0.2);
+
+            for i in 0..graph.num_vertices() {
+                assert_eq!(valid_color_assignment(&graph, &individual, i), true)
+            }
+        } else {
+            panic!("The file containing the test graph is missing")
+        }
+    }
+
+    #[test]
+    fn test_select() {
+        let mut population = vec![
+            (3, vec![1, 2, 1, 3, 1]),
+            (2, vec![2, 1, 2, 2, 1]),
+            (4, vec![1, 2, 3, 4]),
+            (3, vec![3, 2, 2, 1, 3, 1]),
+            (3, vec![1, 2, 3, 1, 2, 3, 1, 2, 3]),
+            (5, vec![1, 2, 3, 4, 5]),
+        ];
+
+        population.sort();
+
+        let (p1, p2) = select(&population, population.len());
+
+        assert_ne!(p1, p2);
+
+        for i in 0..population.len() {
+            if population[i].1 == p1 || population[i].1 == p2 {
+                assert!(i <= (population.len() as f64 * 0.2).floor() as usize);
+            }
+        }
+    }
+
+    #[test]
+    fn test_crossover() {
+        if let Ok(Some(graph)) = input::read_graph_from_file("data/myc/myciel3.col") {
+            let mut population = Vec::new();
+            let upper_bound = coloring_upper_bound(&graph);
+
+            for _ in 0..6 {
+                let individual = generate_individual(&graph, upper_bound);
+                population.push((count_colors(&individual), individual));
+            }
+
+            population.sort();
+
+            let (p1, p2) = select(&population, population.len());
+
+            let offspring = crossover(&graph, p1, p2);
+
+            for i in 0..graph.num_vertices() {
+                assert_eq!(valid_color_assignment(&graph, &offspring, i), true);
+            }
+        } else {
+            panic!("The file containing the test graph is missing")
+        }
+    }
+
+    #[test]
+    fn test_replace() {
+        let population = vec![
+            (3, vec![1, 2, 1, 3, 1]),
+            (2, vec![2, 1, 2, 2, 1]),
+            (4, vec![1, 2, 3, 4]),
+            (3, vec![3, 2, 2, 1, 3, 1]),
+            (3, vec![1, 2, 3, 1, 2, 3, 1, 2, 3]),
+            (5, vec![1, 2, 3, 4, 5]),
+        ];
+
+        let mut pop1 = population.clone();
+        let mut pop2 = population.clone();
+
+        replace(&mut pop1, 3);
+
+        assert_eq!(
+            pop1,
+            vec![
+                (3, vec![1, 2, 1, 3, 1]),
+                (2, vec![2, 1, 2, 2, 1]),
+                (4, vec![1, 2, 3, 4])
+            ]
+        );
+
+        replace(&mut pop2, 1);
+
+        assert_eq!(pop2, vec![(3, vec![1, 2, 1, 3, 1]),]);
+    }
+
+    #[test]
     fn test_genetic() {
         if let Ok(Some(graph)) = input::read_graph_from_file("data/myc/myciel3.col") {
-            let (best, colors) = genetic(graph, 10000, 100, 2, 0.01);
+            let (best, colors) = genetic(&graph, 10000, 100, 2, 0.01);
 
-            println!("{} - {:?}", best, colors);
+            assert!(best <= coloring_upper_bound(&graph));
+
+            for i in 0..graph.num_vertices() {
+                assert_eq!(valid_color_assignment(&graph, &colors, i), true)
+            }
         } else {
             panic!("The file containing the test graph is missing")
         }
