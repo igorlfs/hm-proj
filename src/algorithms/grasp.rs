@@ -1,5 +1,6 @@
 use crate::graph::Graph;
 use rand::seq::SliceRandom;
+use std::collections::HashSet;
 
 /// Given a `graph`, get (at most) `n` indexes of the higher degree vertices in the subgraph induced by
 /// `subset`. If `list` is provided, don't use the induced subgraph and, instead, from the vertices
@@ -74,7 +75,7 @@ pub fn grasp(
 
             vertex_set.retain(|vertex| !class_list[num_color_classes - 1].contains(vertex));
         }
-        // TODO ImprovePhase(V,E,i,{V1,...,Vi})
+        improve_phase(&graph, &mut num_color_classes, &mut class_list);
         if num_color_classes < num_colors {
             best_class_list = class_list;
             num_colors = num_color_classes;
@@ -125,6 +126,153 @@ fn assign_color(
         class_list[num_color_classes - 1] = current_color_class;
         *min_num_edges_remaining = remaining_edges;
     }
+}
+
+fn improve_phase(graph: &Graph, num_classes: &mut usize, class_list: &mut Vec<Vec<usize>>) {
+    let mut num_forbidden = 0;
+
+    while num_forbidden == 0 {
+        let mut lenghts: Vec<(usize, usize)> = class_list
+            .iter()
+            .enumerate()
+            .map(|(index, class)| (index, class.len()))
+            .take(*num_classes)
+            .collect();
+
+        lenghts.sort_by(|lhs, rhs| rhs.1.cmp(&lhs.1));
+
+        let smallest_lengths: Vec<usize> = lenghts
+            .iter()
+            .rev()
+            .take(2)
+            .map(|(index, _)| *index)
+            .collect();
+
+        let mut combined_class: Vec<usize> = vec![];
+
+        for index in smallest_lengths.iter() {
+            combined_class.append(&mut class_list[*index].clone());
+        }
+
+        let mut new_classes: Vec<Vec<usize>> = vec![];
+
+        new_classes.push(combined_class);
+
+        for (index, class) in class_list.iter().enumerate() {
+            if index == smallest_lengths[0] || index == smallest_lengths[1] || class.is_empty() {
+                continue;
+            }
+            new_classes.push(class.clone());
+        }
+
+        num_forbidden = local_search(graph, &mut new_classes);
+
+        if num_forbidden == 0 {
+            *num_classes = new_classes.len();
+            *class_list = new_classes;
+        }
+    }
+
+    let num_vertices = graph.num_vertices();
+    class_list.resize(num_vertices, Vec::new());
+}
+
+fn get_coloring_from_class_list(num_vertices: usize, class_list: &[Vec<usize>]) -> Vec<usize> {
+    let mut coloring: Vec<usize> = vec![0; num_vertices];
+    for (i, class) in class_list.iter().enumerate() {
+        for vertex in class {
+            coloring[*vertex] = i + 1;
+        }
+    }
+    coloring
+}
+
+/// Counts the number of forbidden edges in `graph` according to `coloring`.
+///
+/// Save the corresponding vertices in a set.
+fn get_forbidden(graph: &Graph, class_list: &[Vec<usize>]) -> (usize, HashSet<usize>) {
+    let num_vertices = graph.num_vertices();
+    let adjacency_matrix = graph.adjacency_matrix();
+    let coloring = get_coloring_from_class_list(num_vertices, class_list);
+    let mut count = 0;
+    let mut forbidden = HashSet::new();
+    for (i, row) in adjacency_matrix.iter().enumerate() {
+        for j in i..row.len() {
+            if adjacency_matrix[i][j] && coloring[i] == coloring[j] {
+                count += 1;
+                forbidden.insert(i);
+                forbidden.insert(j);
+            }
+        }
+    }
+    (count, forbidden)
+}
+
+/// Counts the number of forbidden edges from `vertex` in `graph` according to `coloring`.
+fn count_forbidden_per_vertex(graph: &Graph, coloring: &[usize], vertex: usize) -> usize {
+    let num_vertices = graph.num_vertices();
+    let adjacency_matrix = graph.adjacency_matrix();
+    let mut count = 0;
+    for i in 0..num_vertices {
+        if adjacency_matrix[vertex][i] && coloring[i] == coloring[vertex] {
+            count += 1;
+        }
+    }
+    count
+}
+
+/// Applies o local search for `class_list` according to `graph`.
+///
+/// Returns the number of edges that are still forbidden.
+fn local_search(graph: &Graph, class_list: &mut Vec<Vec<usize>>) -> usize {
+    let no_improvement_ceil = graph.num_vertices() / 2;
+    let (mut forbidden_count, mut forbidden_set) = get_forbidden(graph, class_list);
+    let mut forbidden_vertices: Vec<usize> = forbidden_set.into_iter().collect();
+    // We use this variable to control how many iterations we can go by without improvement
+    let mut no_improvement = 0;
+
+    while forbidden_count > 0 && no_improvement < no_improvement_ceil {
+        // Randomly choose an illegal vertex (i.e., one that is colored with the same color as an adjacent vertex).
+
+        // Since forbidden_count > 0 we can unwrap
+        let vertex = forbidden_vertices.choose(&mut rand::thread_rng()).unwrap();
+        let mut coloring = get_coloring_from_class_list(graph.num_vertices(), class_list);
+        let mut best_count = count_forbidden_per_vertex(graph, &coloring, *vertex);
+        let original_count = best_count;
+        let mut best_color = coloring[*vertex];
+        let original_color = best_color;
+
+        // Make all possible attempts to switch v to a different color to improve the current value of f(s).
+
+        // Colors are 1-indexed
+        for i in 1..class_list.len() + 1 {
+            coloring[*vertex] = i;
+            let new_count = count_forbidden_per_vertex(graph, &coloring, *vertex);
+            if new_count < best_count {
+                best_count = new_count;
+                best_color = i;
+            }
+        }
+
+        if best_count < original_count {
+            no_improvement = 0;
+
+            // Updating class_list
+            let original_index_in_class_list = class_list[original_color - 1]
+                .iter()
+                .position(|x| *x == *vertex)
+                .unwrap();
+            class_list[original_color - 1].remove(original_index_in_class_list);
+            class_list[best_color - 1].push(*vertex);
+
+            (forbidden_count, forbidden_set) = get_forbidden(graph, class_list);
+            forbidden_vertices = forbidden_set.into_iter().collect();
+        } else {
+            no_improvement += 1;
+        }
+    }
+
+    forbidden_count
 }
 
 #[cfg(test)]
@@ -191,9 +339,7 @@ mod tests {
         if let Ok(Some(graph)) = input::read_graph_from_file("data/myc/myciel4.col") {
             let adjacency_matrix = graph.adjacency_matrix();
             let num_vertices = graph.num_vertices();
-            let (_num_colors, class_colors) = grasp(graph, 10, 5, 5);
-
-            // TODO compare num_colors with an instance whose chromatic number is known
+            let (_, class_colors) = grasp(graph, 10, 5, 5);
 
             let mut coloring: Vec<usize> = vec![0; num_vertices];
 
@@ -216,5 +362,44 @@ mod tests {
         } else {
             panic!("The file containing the test graph is missing")
         }
+    }
+
+    #[test]
+    fn test_get_forbidden() {
+        // The complete graph
+        let mut graph = Graph::new(5);
+        let adjacency_matrix = vec![
+            vec![false, true, true, true, true],
+            vec![true, false, true, true, true],
+            vec![true, true, false, true, true],
+            vec![true, true, true, false, true],
+            vec![true, true, true, true, false],
+        ];
+        let color_classes = vec![vec![0], vec![1], vec![2, 3, 4]];
+
+        graph.add_edges_from_matrix(adjacency_matrix);
+        let (count, forbidden) = get_forbidden(&graph, &color_classes);
+
+        assert_eq!(forbidden, HashSet::from([2, 3, 4]));
+        assert_eq!(count, 3)
+    }
+
+    #[test]
+    fn test_local_search() {
+        // Basically a linked list colored as 1---2---2---3
+        let mut graph = Graph::new(4);
+        let adjacency_matrix = vec![
+            vec![false, true, false, false],
+            vec![true, false, true, false],
+            vec![false, true, false, true],
+            vec![false, false, true, false],
+        ];
+        let mut color_classes = vec![vec![0], vec![1, 2], vec![3]];
+
+        graph.add_edges_from_matrix(adjacency_matrix);
+
+        let num_forbidden = local_search(&graph, &mut color_classes);
+
+        assert_eq!(num_forbidden, 0);
     }
 }
