@@ -1,3 +1,4 @@
+use super::{count_forbidden_per_vertex, get_coloring_from_class_list};
 use crate::graph::Graph;
 use rand::seq::SliceRandom;
 use std::collections::HashSet;
@@ -41,7 +42,7 @@ fn count_remaining_edges(graph: &Graph, list: &[usize]) -> usize {
 }
 
 pub fn grasp(
-    graph: Graph,
+    graph: &Graph,
     grasp_iterations: i32,
     color_iterations: i32,
     color_list_size: usize,
@@ -66,7 +67,7 @@ pub fn grasp(
                 assign_color(
                     &vertex_set,
                     color_list_size,
-                    &graph,
+                    graph,
                     &mut min_num_edges_remaining,
                     &mut class_list,
                     num_color_classes,
@@ -75,7 +76,7 @@ pub fn grasp(
 
             vertex_set.retain(|vertex| !class_list[num_color_classes - 1].contains(vertex));
         }
-        improve_phase(&graph, &mut num_color_classes, &mut class_list);
+        improve_phase(graph, &mut num_color_classes, &mut class_list);
         if num_color_classes < num_colors {
             best_class_list = class_list;
             num_colors = num_color_classes;
@@ -177,16 +178,6 @@ fn improve_phase(graph: &Graph, num_classes: &mut usize, class_list: &mut Vec<Ve
     class_list.resize(num_vertices, Vec::new());
 }
 
-fn get_coloring_from_class_list(num_vertices: usize, class_list: &[Vec<usize>]) -> Vec<usize> {
-    let mut coloring: Vec<usize> = vec![0; num_vertices];
-    for (i, class) in class_list.iter().enumerate() {
-        for vertex in class {
-            coloring[*vertex] = i + 1;
-        }
-    }
-    coloring
-}
-
 /// Counts the number of forbidden edges in `graph` according to `coloring`.
 ///
 /// Save the corresponding vertices in a set.
@@ -206,19 +197,6 @@ fn get_forbidden(graph: &Graph, class_list: &[Vec<usize>]) -> (usize, HashSet<us
         }
     }
     (count, forbidden)
-}
-
-/// Counts the number of forbidden edges from `vertex` in `graph` according to `coloring`.
-fn count_forbidden_per_vertex(graph: &Graph, coloring: &[usize], vertex: usize) -> usize {
-    let num_vertices = graph.num_vertices();
-    let adjacency_matrix = graph.adjacency_matrix();
-    let mut count = 0;
-    for i in 0..num_vertices {
-        if adjacency_matrix[vertex][i] && coloring[i] == coloring[vertex] {
-            count += 1;
-        }
-    }
-    count
 }
 
 /// Applies o local search for `class_list` according to `graph`.
@@ -278,7 +256,7 @@ fn local_search(graph: &Graph, class_list: &mut Vec<Vec<usize>>) -> usize {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::input;
+    use crate::{algorithms::check_viability, input};
 
     #[test]
     fn test_get_n_largest_degree() {
@@ -333,32 +311,14 @@ mod tests {
 
     #[test]
     fn test_grasp() {
-        // Asserts GRASP provides
-        // 1. A solution and,
-        // 2. Said solution is viable
+        // Asserts GRASP provides a solution
         if let Ok(Some(graph)) = input::read_graph_from_file("data/myc/myciel4.col") {
-            let adjacency_matrix = graph.adjacency_matrix();
             let num_vertices = graph.num_vertices();
-            let (_, class_colors) = grasp(graph, 10, 5, 5);
+            let (_, class_colors) = grasp(&graph, 10, 5, 5);
 
-            let mut coloring: Vec<usize> = vec![0; num_vertices];
+            let coloring = get_coloring_from_class_list(num_vertices, &class_colors);
 
-            for (i, class) in class_colors.iter().enumerate() {
-                for vertex in class {
-                    assert_eq!(coloring[*vertex], 0); // Each vertex must get only one color;
-                    coloring[*vertex] = i + 1;
-                }
-            }
-
-            for (i, vertex) in coloring.iter().enumerate() {
-                assert_ne!(*vertex, 0); // Each vertex must get a color
-
-                (0..num_vertices).for_each(|j| {
-                    if adjacency_matrix[i][j] {
-                        assert_ne!(coloring[j], *vertex); // Neighbors can't share colors
-                    }
-                });
-            }
+            check_viability(&graph, &coloring);
         } else {
             panic!("The file containing the test graph is missing")
         }
