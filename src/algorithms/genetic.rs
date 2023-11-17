@@ -204,8 +204,7 @@ mod tests {
 
     #[test]
     fn test_genetic() {
-        if let Ok(Some(graph)) = input::read_graph_from_file("data/sgb/anna.col") {
-            // grafo, número de gerações, tamanho da população, fração da população que se reproduz, fração da população
+        if let Ok(Some(graph)) = input::read_graph_from_file("data/myc/myciel3.col") {
             let (best, colors) = genetic(graph, 10000, 100, 2, 0.01);
 
             println!("{} - {:?}", best, colors);
