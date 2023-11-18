@@ -1,33 +1,25 @@
+use std::collections::HashSet;
+use rand::prelude::SliceRandom;
 use rand::Rng;
-
 use crate::graph::Graph;
 
 /// Counts the number of colors used in a GCP solution.
-fn count_colors(solution: &Vec<usize>) -> usize {
-    let mut solution = solution.clone();
+fn count_colors(solution: &[usize]) -> usize {
+    let colors: HashSet<&usize> = solution.into_iter().collect();
 
-    solution.sort();
-    solution.dedup();
-
-    solution.len()
+    colors.len()
 }
 
 /// Checks if the current color assignment of a node and his neighborhood is valid.
-fn valid_color_assignment(graph: &Graph, solution: &Vec<usize>, node: usize) -> bool {
-    let mut is_valid = true;
-    let neighbors = graph.get_neighbors(node);
-
-    for i in neighbors {
-        if solution[node] == solution[i] {
-            is_valid = false;
-        }
-    }
-
-    is_valid
+fn valid_color_assignment(graph: &Graph, solution: &[usize], node: usize) -> bool {
+    !graph
+        .get_neighbors(node)
+        .iter()
+        .any(|x| solution[node] == solution[*x])
 }
 
 // A coloring upper bound based on the largest neighborhood
-// Tighter upper bounds helps a lot in the randomized color
+// Tighter upper bounds help during the randomized color
 // assignment (individual generation and mutation)
 /// Determine an upper bound for the number of colors in a graph.
 ///
@@ -72,9 +64,9 @@ fn generate_individual(graph: &Graph, upper_bound: usize) -> Vec<usize> {
 /// with a probability given by the `mutation_probability` parameter.
 fn mutate(
     graph: &Graph,
-    individual: &mut Vec<usize>,
+    individual: &mut [usize],
     upper_bound: usize,
-    mutation_probability: &f64,
+    mutation_probability: f64,
 ) {
     let n = graph.num_vertices();
     let mut rng = rand::thread_rng();
@@ -83,7 +75,7 @@ fn mutate(
     for i in 1..n {
         let rand = rng.gen_range(0.0..1.0);
 
-        if rand <= *mutation_probability {
+        if rand <= mutation_probability {
             while is_invalid {
                 individual[i] = rng.gen_range(1..=upper_bound);
                 is_invalid = !valid_color_assignment(&graph, &individual, i);
@@ -100,23 +92,24 @@ fn select(
     population: &Vec<(usize, Vec<usize>)>,
     population_size: usize,
 ) -> (Vec<usize>, Vec<usize>) {
-    let mut rng = rand::thread_rng();
     let limit = (population_size as f64 * 0.2).floor() as usize;
 
-    let p1 = rng.gen_range(0..=limit);
-    let mut p2 = rng.gen_range(0..=limit);
+    let (_, mut colors): (Vec<usize>, Vec<Vec<usize>>) = population.to_owned().clone().into_iter().unzip();
+    
+    colors.truncate(limit + 1);
 
-    while p1 == p2 {
-        p2 = rng.gen_range(0..=limit);
-    }
+    let p: Vec<Vec<usize>> = colors
+        .choose_multiple(&mut rand::thread_rng(), 2)
+        .cloned()
+        .collect();
 
-    (population[p1].1.clone(), population[p2].1.clone())
+    (p[0].clone(), p[1].clone())
 }
 
 /// Given two parents `p1` and `p2`, returns an offspring generated from the recombination
 /// of `p1` and `p2`.
 ///
-/// The crossover strategy implemented was the one-point crossover (i.e., chooses
+/// The crossover strategy implemented is the one-point crossover (i.e., chooses
 /// a random position of the vector and makes the offspring equal to the first parent up to
 /// that position and equal to the second parent from that position onwards.)
 fn crossover(graph: &Graph, p1: Vec<usize>, p2: Vec<usize>) -> Vec<usize> {
@@ -125,13 +118,9 @@ fn crossover(graph: &Graph, p1: Vec<usize>, p2: Vec<usize>) -> Vec<usize> {
     let mut offspring = vec![0; n];
     let pos = rng.gen_range(0..n);
 
-    for i in 0..=pos {
-        offspring[i] = p1[i];
-    }
+    offspring[..(pos + 1)].copy_from_slice(&p1[..(pos + 1)]);
 
-    for i in (pos + 1)..n {
-        offspring[i] = p2[i];
-    }
+    offspring[(pos + 1)..].copy_from_slice(&p2[(pos + 1)..]);
 
     for i in 0..n {
         let mut start_color = 1;
@@ -160,7 +149,7 @@ pub fn genetic(
     mutation_probability: f64,
 ) -> (usize, Vec<usize>) {
     let mut best = graph.num_vertices();
-    let mut colors = (1..=graph.num_vertices()).collect();
+    let mut colors = (1..=best).collect();
     let mut population = Vec::<(usize, Vec<usize>)>::new();
     let upper_bound = coloring_upper_bound(&graph);
 
@@ -177,7 +166,7 @@ pub fn genetic(
 
             let mut offspring = crossover(&graph, p1, p2);
 
-            mutate(&graph, &mut offspring, upper_bound, &mutation_probability);
+            mutate(graph, &mut offspring, upper_bound, mutation_probability);
 
             population.push((count_colors(&offspring), offspring));
         }
@@ -218,8 +207,8 @@ mod tests {
         graph.add_edge(1, 2);
         graph.add_edge(2, 3);
 
-        assert_eq!(valid_color_assignment(&graph, &vec![1, 2, 3, 1], 2), true);
-        assert_eq!(valid_color_assignment(&graph, &vec![1, 2, 2, 1], 2), false);
+        assert!(valid_color_assignment(&graph, &vec![1, 2, 3, 1], 2));
+        assert!(!valid_color_assignment(&graph, &vec![1, 2, 2, 1], 2));
     }
 
     #[test]
@@ -249,7 +238,7 @@ mod tests {
             let individual = generate_individual(&graph, upper_bound);
 
             for i in 0..graph.num_vertices() {
-                assert_eq!(valid_color_assignment(&graph, &individual, i), true)
+                assert!(valid_color_assignment(&graph, &individual, i))
             }
         } else {
             panic!("The file containing the test graph is missing")
@@ -266,14 +255,14 @@ mod tests {
             let mut individual = generate_individual(&graph, upper_bound);
 
             for i in 0..graph.num_vertices() {
-                assert_eq!(valid_color_assignment(&graph, &individual, i), true)
+                assert!(valid_color_assignment(&graph, &individual, i))
             }
 
-            // A little higher mutation probability just to ensure that some vertex actually change
-            mutate(&graph, &mut individual, upper_bound, &0.2);
+            // A little higher mutation probability just to ensure that some vertices actually change
+            mutate(&graph, &mut individual, upper_bound, 0.2);
 
             for i in 0..graph.num_vertices() {
-                assert_eq!(valid_color_assignment(&graph, &individual, i), true)
+                assert!(valid_color_assignment(&graph, &individual, i))
             }
         } else {
             panic!("The file containing the test graph is missing")
@@ -322,7 +311,7 @@ mod tests {
             let offspring = crossover(&graph, p1, p2);
 
             for i in 0..graph.num_vertices() {
-                assert_eq!(valid_color_assignment(&graph, &offspring, i), true);
+                assert!(valid_color_assignment(&graph, &offspring, i));
             }
         } else {
             panic!("The file containing the test graph is missing")
@@ -367,7 +356,7 @@ mod tests {
             assert!(best <= coloring_upper_bound(&graph));
 
             for i in 0..graph.num_vertices() {
-                assert_eq!(valid_color_assignment(&graph, &colors, i), true)
+                assert!(valid_color_assignment(&graph, &colors, i))
             }
         } else {
             panic!("The file containing the test graph is missing")
