@@ -1,7 +1,7 @@
-use std::collections::HashSet;
+use crate::graph::Graph;
 use rand::prelude::SliceRandom;
 use rand::Rng;
-use crate::graph::Graph;
+use std::collections::HashSet;
 
 /// Counts the number of colors used in a GCP solution.
 fn count_colors(solution: &[usize]) -> usize {
@@ -41,20 +41,18 @@ fn coloring_upper_bound(graph: &Graph) -> usize {
 /// Generates a randomized solution for the GCP problem.
 ///
 /// A solution consists of a vector of size `n`, with `n` being the number of vertices of the graph,
-/// where the `ith position` receives a number between `1` and the `upper bound for coloring`.
+/// where the `ith position` receives a number between `1` and the `upper bound` for coloring.
 /// This number represents the `color of the ith vertex` in the current solution.
 fn generate_individual(graph: &Graph, upper_bound: usize) -> Vec<usize> {
     let n = graph.num_vertices();
-    let mut individual = vec![0; n];
-    let mut is_invalid = true;
+    let mut individual = vec![1; n];
 
     for i in 0..n {
-        while is_invalid {
-            individual[i] = rand::thread_rng().gen_range(1..=upper_bound);
-            is_invalid = !valid_color_assignment(&graph, &individual, i);
-        }
+        individual[i] = rand::thread_rng().gen_range(1..=upper_bound);
 
-        is_invalid = true;
+        while !valid_color_assignment(&graph, &individual, i) {
+            individual[i] = rand::thread_rng().gen_range(1..=upper_bound);
+        }
     }
 
     individual
@@ -62,26 +60,19 @@ fn generate_individual(graph: &Graph, upper_bound: usize) -> Vec<usize> {
 
 /// Traverses the solution vector, changing the color of each vertex to a random color
 /// with a probability given by the `mutation_probability` parameter.
-fn mutate(
-    graph: &Graph,
-    individual: &mut [usize],
-    upper_bound: usize,
-    mutation_probability: f64,
-) {
+fn mutate(graph: &Graph, individual: &mut [usize], upper_bound: usize, mutation_probability: f64) {
     let n = graph.num_vertices();
     let mut rng = rand::thread_rng();
-    let mut is_invalid = true;
 
     for i in 1..n {
         let rand = rng.gen_range(0.0..1.0);
 
         if rand <= mutation_probability {
-            while is_invalid {
-                individual[i] = rng.gen_range(1..=upper_bound);
-                is_invalid = !valid_color_assignment(&graph, &individual, i);
-            }
+            individual[i] = rng.gen_range(1..=upper_bound);
 
-            is_invalid = true;
+            while !valid_color_assignment(&graph, &individual, i) {
+                individual[i] = rng.gen_range(1..=upper_bound);
+            }
         }
     }
 }
@@ -94,8 +85,9 @@ fn select(
 ) -> (Vec<usize>, Vec<usize>) {
     let limit = (population_size as f64 * 0.2).floor() as usize;
 
-    let (_, mut colors): (Vec<usize>, Vec<Vec<usize>>) = population.to_owned().clone().into_iter().unzip();
-    
+    let (_, mut colors): (Vec<usize>, Vec<Vec<usize>>) =
+        population.to_owned().clone().into_iter().unzip();
+
     colors.truncate(limit + 1);
 
     let p: Vec<Vec<usize>> = colors
@@ -115,7 +107,7 @@ fn select(
 fn crossover(graph: &Graph, p1: Vec<usize>, p2: Vec<usize>) -> Vec<usize> {
     let n = graph.num_vertices();
     let mut rng = rand::thread_rng();
-    let mut offspring = vec![0; n];
+    let mut offspring = vec![1; n];
     let pos = rng.gen_range(0..n);
 
     offspring[..(pos + 1)].copy_from_slice(&p1[..(pos + 1)]);
@@ -136,7 +128,8 @@ fn crossover(graph: &Graph, p1: Vec<usize>, p2: Vec<usize>) -> Vec<usize> {
 
 /// Truncates the population to keep the original size after the crossover operator.
 ///
-/// This function is called after a sort, so the elements after the truncate
+/// This function is called after a `sort`, so the remaining elements after the `truncate` are the
+/// fittest individuals in a population with the original size.
 fn replace(population: &mut Vec<(usize, Vec<usize>)>, population_size: usize) {
     population.truncate(population_size);
 }
