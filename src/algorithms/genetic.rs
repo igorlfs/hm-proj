@@ -5,7 +5,7 @@ use std::collections::HashSet;
 
 /// Counts the number of colors used in a GCP solution.
 fn count_colors(solution: &[usize]) -> usize {
-    let colors: HashSet<&usize> = solution.into_iter().collect();
+    let colors: HashSet<&usize> = solution.iter().collect();
 
     colors.len()
 }
@@ -50,7 +50,7 @@ fn generate_individual(graph: &Graph, upper_bound: usize) -> Vec<usize> {
     for i in 0..n {
         individual[i] = rand::thread_rng().gen_range(1..=upper_bound);
 
-        while !valid_color_assignment(&graph, &individual, i) {
+        while !valid_color_assignment(graph, &individual, i) {
             individual[i] = rand::thread_rng().gen_range(1..=upper_bound);
         }
     }
@@ -70,7 +70,7 @@ fn mutate(graph: &Graph, individual: &mut [usize], upper_bound: usize, mutation_
         if rand <= mutation_probability {
             individual[i] = rng.gen_range(1..=upper_bound);
 
-            while !valid_color_assignment(&graph, &individual, i) {
+            while !valid_color_assignment(graph, individual, i) {
                 individual[i] = rng.gen_range(1..=upper_bound);
             }
         }
@@ -82,8 +82,9 @@ fn mutate(graph: &Graph, individual: &mut [usize], upper_bound: usize, mutation_
 fn select(
     population: &Vec<(usize, Vec<usize>)>,
     population_size: usize,
+    selected_population_ratio: f64,
 ) -> (Vec<usize>, Vec<usize>) {
-    let limit = (population_size as f64 * 0.2).floor() as usize;
+    let limit = (population_size as f64 * selected_population_ratio).floor() as usize;
 
     let (_, mut colors): (Vec<usize>, Vec<Vec<usize>>) =
         population.to_owned().clone().into_iter().unzip();
@@ -117,7 +118,7 @@ fn crossover(graph: &Graph, p1: Vec<usize>, p2: Vec<usize>) -> Vec<usize> {
     for i in 0..n {
         let mut start_color = 1;
 
-        while !valid_color_assignment(&graph, &offspring, i) {
+        while !valid_color_assignment(graph, &offspring, i) {
             offspring[i] = start_color;
             start_color += 1;
         }
@@ -140,14 +141,15 @@ pub fn genetic(
     population_size: usize,
     offsprings_per_generation: usize,
     mutation_probability: f64,
+    selected_population_ratio: f64,
 ) -> (usize, Vec<usize>) {
     let mut best = graph.num_vertices();
     let mut colors = (1..=best).collect();
     let mut population = Vec::<(usize, Vec<usize>)>::new();
-    let upper_bound = coloring_upper_bound(&graph);
+    let upper_bound = coloring_upper_bound(graph);
 
     for _ in 0..population_size {
-        let individual = generate_individual(&graph, upper_bound);
+        let individual = generate_individual(graph, upper_bound);
         population.push((count_colors(&individual), individual));
     }
 
@@ -155,9 +157,9 @@ pub fn genetic(
 
     for _ in 0..generations {
         for _ in 0..offsprings_per_generation {
-            let (p1, p2) = select(&population, population_size);
+            let (p1, p2) = select(&population, population_size, selected_population_ratio);
 
-            let mut offspring = crossover(&graph, p1, p2);
+            let mut offspring = crossover(graph, p1, p2);
 
             mutate(graph, &mut offspring, upper_bound, mutation_probability);
 
@@ -275,7 +277,7 @@ mod tests {
 
         population.sort();
 
-        let (p1, p2) = select(&population, population.len());
+        let (p1, p2) = select(&population, population.len(), 0.2);
 
         assert_ne!(p1, p2);
 
@@ -299,7 +301,7 @@ mod tests {
 
             population.sort();
 
-            let (p1, p2) = select(&population, population.len());
+            let (p1, p2) = select(&population, population.len(), 0.2);
 
             let offspring = crossover(&graph, p1, p2);
 
@@ -344,7 +346,7 @@ mod tests {
     #[test]
     fn test_genetic() {
         if let Ok(Some(graph)) = input::read_graph_from_file("data/myc/myciel3.col") {
-            let (best, colors) = genetic(&graph, 10000, 100, 2, 0.01);
+            let (best, colors) = genetic(&graph, 10000, 100, 2, 0.01, 0.2);
 
             assert!(best <= coloring_upper_bound(&graph));
 
