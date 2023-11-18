@@ -77,8 +77,9 @@ fn mutate(graph: &Graph, individual: &mut [usize], upper_bound: usize, mutation_
     }
 }
 
-/// Selects 20% of the fittest individuals in the population and, from them, randomly
-/// selects two individuals who will be the parents of an offspring.
+/// Selects a fraction (`selected_population_ratio` parameter) of the fittest individuals
+/// in the population and, from them, randomly selects two individuals who will be the parents
+/// of an offspring.
 fn select(
     population: &Vec<(usize, Vec<usize>)>,
     population_size: usize,
