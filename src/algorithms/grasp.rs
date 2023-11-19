@@ -110,6 +110,13 @@ pub fn grasp(
     solutions
 }
 
+/// Tries to assign a color class `num_color_classes` to `class_list`
+/// following the greedy heuristic.
+///
+/// The greedy heuristic chooses an available vertex: a vertex such that none of its neighbors have
+/// been colored. It tries to cover the remaining graph entirely (or until no candidates remain).
+///
+/// Refer to the article for more information about the heuristic.
 fn assign_color(
     vertex_set: &[usize],
     color_list_size: usize,
@@ -395,13 +402,36 @@ mod tests {
     #[test]
     fn test_grasp_wrapper() {
         // Asserts GRASP provides a solution
-        if let Ok(Some(graph)) = input::read_graph_from_file("data/myc/myciel6.col") {
+        if let Ok(Some(graph)) = input::read_graph_from_file("data/myc/myciel5.col") {
             let (_, coloring) = grasp_wrapper(&graph, 10, 5, 5);
 
             assert!(is_coloring_valid(&graph, &coloring));
         } else {
             panic!("The file containing the test graph is missing")
         }
+    }
+
+    #[test]
+    fn test_improve_phase() {
+        let mut graph = Graph::new(6);
+        graph.add_edge(0, 1);
+        graph.add_edge(1, 2);
+        graph.add_edge(2, 3);
+        graph.add_edge(2, 4);
+        graph.add_edge(2, 5);
+
+        let mut num_classes = 4;
+        let mut class_list = vec![vec![1], vec![2], vec![4, 5], vec![0, 3]];
+
+        improve_phase(&graph, &mut num_classes, &mut class_list);
+
+        assert!(num_classes <= 4);
+
+        // Since the algorithm is randomized, we can't compare to an expected result
+        // But it should still be valid nonetheless
+        let coloring = get_coloring_from_class_list(6, &class_list);
+
+        assert!(is_coloring_valid(&graph, &coloring));
     }
 
     #[test]
