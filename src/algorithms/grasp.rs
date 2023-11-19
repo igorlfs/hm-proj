@@ -1,7 +1,7 @@
-use super::{count_forbidden_per_vertex, get_coloring_from_class_list};
+use super::Solution;
 use crate::graph::Graph;
 use rand::seq::SliceRandom;
-use std::collections::HashSet;
+use std::collections::{BinaryHeap, HashSet};
 
 /// Given a `graph`, get (at most) `n` indexes of the higher degree vertices in the subgraph induced by
 /// `subset`. If `list` is provided, don't use the induced subgraph and, instead, from the vertices
@@ -38,7 +38,26 @@ fn count_remaining_edges(graph: &Graph, list: &[usize]) -> usize {
             }
         }
     }
+
     count
+}
+
+/// Runs a single GRASP execution with the given parameters.
+pub fn grasp_wrapper(
+    graph: &Graph,
+    grasp_iterations: i32,
+    color_iterations: i32,
+    color_list_size: usize,
+) -> Solution {
+    let mut solutions = grasp(
+        graph,
+        grasp_iterations,
+        color_iterations,
+        color_list_size,
+        1,
+    );
+    let (num_colors, coloring) = solutions.pop().unwrap();
+    (num_colors, coloring)
 }
 
 pub fn grasp(
@@ -46,10 +65,10 @@ pub fn grasp(
     grasp_iterations: i32,
     color_iterations: i32,
     color_list_size: usize,
-) -> (usize, Vec<Vec<usize>>) {
+    num_solutions: usize,
+) -> BinaryHeap<Solution> {
     let max_colors = graph.num_vertices();
-    let mut num_colors = max_colors;
-    let mut best_class_list: Vec<Vec<usize>> = Vec::new();
+    let mut solutions = BinaryHeap::with_capacity(num_solutions);
 
     for _ in 0..grasp_iterations {
         let mut num_color_classes = 0;
@@ -76,13 +95,19 @@ pub fn grasp(
 
             vertex_set.retain(|vertex| !class_list[num_color_classes - 1].contains(vertex));
         }
+
         improve_phase(graph, &mut num_color_classes, &mut class_list);
-        if num_color_classes < num_colors {
-            best_class_list = class_list;
-            num_colors = num_color_classes;
+
+        if solutions.len() < num_solutions {
+            let coloring = get_coloring_from_class_list(max_colors, &class_list);
+            solutions.push((num_color_classes, coloring));
+        } else if num_color_classes < solutions.peek().unwrap().0 {
+            solutions.pop();
+            let coloring = get_coloring_from_class_list(max_colors, &class_list);
+            solutions.push((num_color_classes, coloring));
         }
     }
-    (num_colors, best_class_list)
+    solutions
 }
 
 fn assign_color(
@@ -253,10 +278,36 @@ fn local_search(graph: &Graph, class_list: &mut Vec<Vec<usize>>) -> usize {
     forbidden_count
 }
 
+/// Turn a "Class List" into a traditional coloring. A class list assigns each index in a vector to
+/// a vector of vertices, which represent a given color.
+fn get_coloring_from_class_list(num_vertices: usize, class_list: &[Vec<usize>]) -> Vec<usize> {
+    let mut coloring: Vec<usize> = vec![0; num_vertices];
+    for (i, class) in class_list.iter().enumerate() {
+        for vertex in class {
+            assert_eq!(coloring[*vertex], 0);
+            coloring[*vertex] = i + 1;
+        }
+    }
+    coloring
+}
+
+/// Counts the number of forbidden edges from `vertex` in `graph` according to `coloring`.
+fn count_forbidden_per_vertex(graph: &Graph, coloring: &[usize], vertex: usize) -> usize {
+    let num_vertices = graph.num_vertices();
+    let adjacency_matrix = graph.adjacency_matrix();
+    let mut count = 0;
+    for i in 0..num_vertices {
+        if adjacency_matrix[vertex][i] && coloring[i] == coloring[vertex] {
+            count += 1;
+        }
+    }
+    count
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{algorithms::check_viability, input};
+    use crate::{algorithms::is_coloring_valid, input};
 
     #[test]
     fn test_get_n_largest_degree() {
@@ -312,13 +363,10 @@ mod tests {
     #[test]
     fn test_grasp() {
         // Asserts GRASP provides a solution
-        if let Ok(Some(graph)) = input::read_graph_from_file("data/myc/myciel4.col") {
-            let num_vertices = graph.num_vertices();
-            let (_, class_colors) = grasp(&graph, 10, 5, 5);
+        if let Ok(Some(graph)) = input::read_graph_from_file("data/myc/myciel6.col") {
+            let (_, coloring) = grasp_wrapper(&graph, 10, 5, 5);
 
-            let coloring = get_coloring_from_class_list(num_vertices, &class_colors);
-
-            check_viability(&graph, &coloring);
+            assert!(is_coloring_valid(&graph, &coloring));
         } else {
             panic!("The file containing the test graph is missing")
         }
