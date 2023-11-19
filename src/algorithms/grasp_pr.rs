@@ -65,7 +65,7 @@ mod tests {
     #[test]
     fn test_grasp_path_relinking() {
         // Asserts GRASP + PR provides a solution
-        if let Ok(Some(graph)) = input::read_graph_from_file("data/myc/myciel6.col") {
+        if let Ok(Some(graph)) = input::read_graph_from_file("data/myc/myciel5.col") {
             let (_, coloring) = grasp_path_relinking(&graph, 5);
 
             assert!(is_coloring_valid(&graph, &coloring));

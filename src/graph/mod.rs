@@ -11,10 +11,33 @@ impl Graph {
         }
     }
 
+    #[cfg(test)]
+    pub fn complete(num_vertices: usize) -> Self {
+        let mut graph = Graph {
+            num_vertices,
+            adjacency_matrix: vec![vec![true; num_vertices]; num_vertices],
+        };
+
+        // Remove self-references
+        for i in 0..num_vertices {
+            graph.adjacency_matrix[i][i] = false;
+        }
+
+        graph
+    }
+
     pub fn add_edge(&mut self, from: usize, to: usize) {
         if from < self.num_vertices && to < self.num_vertices {
             self.adjacency_matrix[from][to] = true;
             self.adjacency_matrix[to][from] = true;
+        }
+    }
+
+    #[cfg(test)]
+    pub fn remove_edge(&mut self, from: usize, to: usize) {
+        if from < self.num_vertices && to < self.num_vertices {
+            self.adjacency_matrix[from][to] = false;
+            self.adjacency_matrix[to][from] = false;
         }
     }
 
@@ -55,18 +78,6 @@ impl Graph {
             neighbors
         } else {
             Vec::new()
-        }
-    }
-
-    #[cfg(test)]
-    pub fn add_edges_from_matrix(&mut self, adjacency_matrix: Vec<Vec<bool>>) {
-        self.num_vertices = adjacency_matrix.len();
-        for (i, line) in adjacency_matrix.iter().enumerate() {
-            for (j, cell) in line.iter().enumerate() {
-                if *cell {
-                    self.add_edge(i, j);
-                }
-            }
         }
     }
 }
