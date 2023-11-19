@@ -64,7 +64,7 @@ fn mutate(graph: &Graph, individual: &mut [usize], upper_bound: usize, mutation_
     let n = graph.num_vertices();
     let mut rng = rand::thread_rng();
 
-    for i in 1..n {
+    for i in 0..n {
         let rand = rng.gen_range(0.0..1.0);
 
         if rand <= mutation_probability {
