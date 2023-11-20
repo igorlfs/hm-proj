@@ -255,8 +255,8 @@ fn get_forbidden_vertices(graph: &Graph, class_list: &[Vec<usize>]) -> (usize, H
 ///
 /// Returns the number of edges that are still forbidden.
 fn local_search(graph: &Graph, class_list: &mut Vec<Vec<usize>>) -> usize {
-    let no_improvement_ceil = graph.num_vertices() / 2;
     let (mut forbidden_count, mut forbidden_set) = get_forbidden_vertices(graph, class_list);
+    let no_improvement_ceil = 2 * forbidden_count;
     let mut forbidden_vertices: Vec<usize> = forbidden_set.into_iter().collect();
     // We use this variable to control how many iterations we can go by without improvement
     let mut no_improvement = 0;
