@@ -1,60 +1,45 @@
-use super::{count_forbidden_per_vertex, get_coloring_from_class_list, grasp::grasp};
+use super::{count_colors, grasp::grasp, is_coloring_valid, Solution};
 use crate::graph::Graph;
-use std::collections::HashSet;
 
-type Solution = (usize, Vec<Vec<usize>>);
+pub fn grasp_path_relinking(graph: &Graph, num_solutions_grasp: usize) -> Solution {
+    let mut solutions = grasp(graph, 10, 5, 5, num_solutions_grasp).into_sorted_vec();
+    solutions.reverse();
+    let mut best_solution = solutions.pop().unwrap().clone();
 
-pub fn grasp_path_relinking(num_iterarions_grasp: usize, graph: &Graph) -> Solution {
-    let num_vertices = graph.num_vertices();
-    let mut solutions_grasp: Vec<Solution> = Vec::new();
-    let mut best_solution: Solution = (usize::MAX, Vec::new());
-    let mut best_coloring = Vec::new();
-
-    for _ in 0..num_iterarions_grasp {
-        let new_solution = grasp(graph, 10, 5, 5);
-
-        if new_solution.0 < best_solution.0 {
-            best_solution = new_solution.clone();
-            best_coloring = get_coloring_from_class_list(num_vertices, &new_solution.1);
-        }
-
-        solutions_grasp.push(new_solution);
-    }
-
-    while let Some(mut solution) = solutions_grasp.pop() {
-        let coloring = get_coloring_from_class_list(num_vertices, &solution.1);
-        let mut difference = simmetric_difference(&best_coloring, &coloring);
+    while let Some(solution) = solutions.pop() {
+        // Always follow the current best coloring, instead of using the starting one
+        let original_best_coloring = best_solution.1.clone();
+        let mut difference = simmetric_difference(&original_best_coloring, &solution.1);
+        let mut new_coloring = solution.1.clone();
 
         while let Some(vertex) = difference.pop() {
-            let original_color = coloring[vertex];
-            let mut new_coloring = coloring.clone();
+            new_coloring[vertex] = original_best_coloring[vertex];
 
-            new_coloring[vertex] = best_coloring[vertex];
+            let num_colors = count_colors(&new_coloring);
 
-            if count_forbidden_per_vertex(graph, &new_coloring, vertex) > 0 {
+            // Avoid having to check if the coloring is valid (since it's more expensive)
+            // if the number of colors hasn't improved
+            if num_colors < best_solution.0 {
                 continue;
             }
 
-            let colors: HashSet<usize> = new_coloring.into_iter().collect();
-
-            if colors.len() < best_solution.0 {
-                let original_index_in_class_list = solution.1[original_color - 1]
-                    .iter()
-                    .position(|x| *x == vertex)
-                    .unwrap();
-                solution.1[original_color - 1].remove(original_index_in_class_list);
-                solution.1[best_coloring[vertex] - 1].push(vertex);
-
-                solution.0 = colors.len();
-
-                best_solution = solution.clone();
+            if !is_coloring_valid(graph, &new_coloring) {
+                continue;
             }
+
+            best_solution.0 = num_colors;
+            best_solution.1 = new_coloring.clone();
         }
+
+        // At the end we should have turned `new_coloring` into the `original_best_coloring`
+        assert_eq!(new_coloring, original_best_coloring);
     }
 
     best_solution
 }
 
+/// Calculates the indexes where `lhs` and `rhs` differ, given that they have the same length.
+/// Else, create a new vector.
 fn simmetric_difference(lhs: &[usize], rhs: &[usize]) -> Vec<usize> {
     if lhs.len() != rhs.len() {
         Vec::new()
@@ -74,7 +59,7 @@ fn simmetric_difference(lhs: &[usize], rhs: &[usize]) -> Vec<usize> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{algorithms::check_viability, input};
+    use crate::{algorithms::is_coloring_valid, input};
 
     #[test]
     fn test_simmetric_difference() {
@@ -88,12 +73,9 @@ mod tests {
     fn test_grasp_path_relinking() {
         // Asserts GRASP + PR provides a solution
         if let Ok(Some(graph)) = input::read_graph_from_file("data/myc/myciel5.col") {
-            let num_vertices = graph.num_vertices();
-            let (_, class_colors) = grasp_path_relinking(5, &graph);
+            let (_, coloring) = grasp_path_relinking(&graph, 5);
 
-            let coloring = get_coloring_from_class_list(num_vertices, &class_colors);
-
-            check_viability(&graph, &coloring);
+            assert!(is_coloring_valid(&graph, &coloring));
         } else {
             panic!("The file containing the test graph is missing")
         }

@@ -1,22 +1,7 @@
+use super::{count_colors, is_valid_color_assignment, Solution};
 use crate::graph::Graph;
 use rand::prelude::SliceRandom;
 use rand::Rng;
-use std::collections::HashSet;
-
-/// Counts the number of colors used in a GCP solution.
-fn count_colors(solution: &[usize]) -> usize {
-    let colors: HashSet<&usize> = solution.iter().collect();
-
-    colors.len()
-}
-
-/// Checks if the current color assignment of a node and his neighborhood is valid.
-fn valid_color_assignment(graph: &Graph, solution: &[usize], node: usize) -> bool {
-    !graph
-        .get_neighbors(node)
-        .iter()
-        .any(|x| solution[node] == solution[*x])
-}
 
 // A coloring upper bound based on the largest neighborhood
 // Tighter upper bounds help during the randomized color
@@ -50,7 +35,7 @@ fn generate_individual(graph: &Graph, upper_bound: usize) -> Vec<usize> {
     for i in 0..n {
         individual[i] = rand::thread_rng().gen_range(1..=upper_bound);
 
-        while !valid_color_assignment(graph, &individual, i) {
+        while !is_valid_color_assignment(graph, &individual, i) {
             individual[i] = rand::thread_rng().gen_range(1..=upper_bound);
         }
     }
@@ -70,7 +55,7 @@ fn mutate(graph: &Graph, individual: &mut [usize], upper_bound: usize, mutation_
         if rand <= mutation_probability {
             individual[i] = rng.gen_range(1..=upper_bound);
 
-            while !valid_color_assignment(graph, individual, i) {
+            while !is_valid_color_assignment(graph, individual, i) {
                 individual[i] = rng.gen_range(1..=upper_bound);
             }
         }
@@ -81,7 +66,7 @@ fn mutate(graph: &Graph, individual: &mut [usize], upper_bound: usize, mutation_
 /// in the population and, from them, randomly selects two individuals who will be the parents
 /// of an offspring.
 fn select(
-    population: &Vec<(usize, Vec<usize>)>,
+    population: &Vec<Solution>,
     population_size: usize,
     selected_population_ratio: f64,
 ) -> (Vec<usize>, Vec<usize>) {
@@ -119,7 +104,7 @@ fn crossover(graph: &Graph, p1: Vec<usize>, p2: Vec<usize>) -> Vec<usize> {
     for i in 0..n {
         let mut start_color = 1;
 
-        while !valid_color_assignment(graph, &offspring, i) {
+        while !is_valid_color_assignment(graph, &offspring, i) {
             offspring[i] = start_color;
             start_color += 1;
         }
@@ -132,7 +117,7 @@ fn crossover(graph: &Graph, p1: Vec<usize>, p2: Vec<usize>) -> Vec<usize> {
 ///
 /// This function is called after a `sort`, so the remaining elements after the `truncate` are the
 /// fittest individuals in a population with the original size.
-fn replace(population: &mut Vec<(usize, Vec<usize>)>, population_size: usize) {
+fn replace(population: &mut Vec<Solution>, population_size: usize) {
     population.truncate(population_size);
 }
 
@@ -143,10 +128,10 @@ pub fn genetic(
     offsprings_per_generation: usize,
     mutation_probability: f64,
     selected_population_ratio: f64,
-) -> (usize, Vec<usize>) {
+) -> Solution {
     let mut best = graph.num_vertices();
     let mut colors = (1..=best).collect();
-    let mut population = Vec::<(usize, Vec<usize>)>::new();
+    let mut population = Vec::<Solution>::new();
     let upper_bound = coloring_upper_bound(graph);
 
     for _ in 0..population_size {
@@ -185,27 +170,7 @@ pub fn genetic(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::input;
-
-    #[test]
-    fn test_count_colors() {
-        assert_eq!(count_colors(&vec![1]), 1);
-        assert_eq!(count_colors(&vec![3, 1, 6, 6, 1, 5]), 4);
-        assert_eq!(count_colors(&vec![2, 1, 3, 1, 1, 4, 5, 10, 4, 3, 3]), 6);
-        assert_eq!(count_colors(&vec![]), 0);
-    }
-
-    #[test]
-    fn test_valid_color_assignment() {
-        let mut graph = Graph::new(4);
-        graph.add_edge(0, 1);
-        graph.add_edge(0, 2);
-        graph.add_edge(1, 2);
-        graph.add_edge(2, 3);
-
-        assert!(valid_color_assignment(&graph, &vec![1, 2, 3, 1], 2));
-        assert!(!valid_color_assignment(&graph, &vec![1, 2, 2, 1], 2));
-    }
+    use crate::{algorithms::is_coloring_valid, input};
 
     #[test]
     fn test_coloring_upper_bound() {
@@ -233,9 +198,7 @@ mod tests {
 
             let individual = generate_individual(&graph, upper_bound);
 
-            for i in 0..graph.num_vertices() {
-                assert!(valid_color_assignment(&graph, &individual, i))
-            }
+            assert!(is_coloring_valid(&graph, &individual));
         } else {
             panic!("The file containing the test graph is missing")
         }
@@ -250,16 +213,12 @@ mod tests {
 
             let mut individual = generate_individual(&graph, upper_bound);
 
-            for i in 0..graph.num_vertices() {
-                assert!(valid_color_assignment(&graph, &individual, i))
-            }
+            assert!(is_coloring_valid(&graph, &individual));
 
             // A little higher mutation probability just to ensure that some vertices actually change
             mutate(&graph, &mut individual, upper_bound, 0.2);
 
-            for i in 0..graph.num_vertices() {
-                assert!(valid_color_assignment(&graph, &individual, i))
-            }
+            assert!(is_coloring_valid(&graph, &individual));
         } else {
             panic!("The file containing the test graph is missing")
         }
@@ -306,9 +265,7 @@ mod tests {
 
             let offspring = crossover(&graph, p1, p2);
 
-            for i in 0..graph.num_vertices() {
-                assert!(valid_color_assignment(&graph, &offspring, i));
-            }
+            assert!(is_coloring_valid(&graph, &offspring));
         } else {
             panic!("The file containing the test graph is missing")
         }
@@ -351,9 +308,7 @@ mod tests {
 
             assert!(best <= coloring_upper_bound(&graph));
 
-            for i in 0..graph.num_vertices() {
-                assert!(valid_color_assignment(&graph, &colors, i))
-            }
+            assert!(is_coloring_valid(&graph, &colors));
         } else {
             panic!("The file containing the test graph is missing")
         }

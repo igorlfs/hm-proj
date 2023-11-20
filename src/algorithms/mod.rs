@@ -1,47 +1,66 @@
 use crate::graph::Graph;
+use std::collections::HashSet;
 
 pub mod genetic;
 pub mod grasp;
 pub mod grasp_pr;
 
-fn get_coloring_from_class_list(num_vertices: usize, class_list: &[Vec<usize>]) -> Vec<usize> {
-    let mut coloring: Vec<usize> = vec![0; num_vertices];
-    for (i, class) in class_list.iter().enumerate() {
-        for vertex in class {
-            assert_eq!(coloring[*vertex], 0);
-            coloring[*vertex] = i + 1;
-        }
-    }
-    coloring
+type Solution = (usize, Vec<usize>);
+
+/// Checks if the current color assignment of a node and his neighborhood is valid.
+fn is_valid_color_assignment(graph: &Graph, solution: &[usize], node: usize) -> bool {
+    !graph
+        .get_neighbors(node)
+        .iter()
+        .any(|x| solution[node] == solution[*x])
 }
 
-/// Counts the number of forbidden edges from `vertex` in `graph` according to `coloring`.
-fn count_forbidden_per_vertex(graph: &Graph, coloring: &[usize], vertex: usize) -> usize {
+/// Counts the number of colors used in a GCP solution.
+fn count_colors(solution: &[usize]) -> usize {
+    let colors: HashSet<&usize> = solution.iter().collect();
+
+    colors.len()
+}
+
+/// Checks if `coloring` is valid for `graph`.
+fn is_coloring_valid(graph: &Graph, coloring: &[usize]) -> bool {
     let num_vertices = graph.num_vertices();
-    let adjacency_matrix = graph.adjacency_matrix();
-    let mut count = 0;
-    for i in 0..num_vertices {
-        if adjacency_matrix[vertex][i] && coloring[i] == coloring[vertex] {
-            count += 1;
-        }
-    }
-    count
+    (0..num_vertices).all(|x| is_valid_color_assignment(graph, coloring, x))
 }
 
 #[cfg(test)]
-fn check_viability(graph: &Graph, coloring: &[usize]) {
-    let num_vertices = graph.num_vertices();
-    let adjacency_matrix = graph.adjacency_matrix();
+mod tests {
+    use super::*;
 
-    for (i, vertex) in coloring.iter().enumerate() {
-        // Each vertex must get a color
-        assert_ne!(*vertex, 0);
+    #[test]
+    fn test_count_colors() {
+        assert_eq!(count_colors(&[1]), 1);
+        assert_eq!(count_colors(&[3, 1, 6, 6, 1, 5]), 4);
+        assert_eq!(count_colors(&[2, 1, 3, 1, 1, 4, 5, 10, 4, 3, 3]), 6);
+        assert_eq!(count_colors(&[]), 0);
+    }
 
-        (0..num_vertices).for_each(|j| {
-            if adjacency_matrix[i][j] {
-                // Neighbors can't share colors
-                assert_ne!(coloring[j], *vertex);
-            }
-        });
+    #[test]
+    fn test_valid_color_assignment() {
+        let mut graph = Graph::new(4);
+        graph.add_edge(0, 1);
+        graph.add_edge(0, 2);
+        graph.add_edge(1, 2);
+        graph.add_edge(2, 3);
+
+        assert!(is_valid_color_assignment(&graph, &[1, 2, 3, 1], 2));
+        assert!(!is_valid_color_assignment(&graph, &[1, 2, 2, 1], 2));
+    }
+
+    #[test]
+    fn test_is_coloring_valid() {
+        let mut graph = Graph::new(4);
+        graph.add_edge(0, 1);
+        graph.add_edge(0, 2);
+        graph.add_edge(1, 2);
+        graph.add_edge(2, 3);
+
+        assert!(is_coloring_valid(&graph, &[1, 2, 3, 1]));
+        assert!(!is_coloring_valid(&graph, &[1, 2, 2, 1]));
     }
 }
