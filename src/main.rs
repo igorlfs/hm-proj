@@ -11,15 +11,39 @@ use std::process;
 use std::time::{Duration, Instant};
 
 fn main() {
-    let Args { algorithm, path } = Args::parse();
+    let Args {
+        algorithm,
+        path,
+        pr_solutions,
+        grasp_iterations,
+        color_iterations,
+        color_list_size,
+        generations,
+        population_size,
+        offspring_size,
+        mutation_probaility,
+        population_ratio,
+    } = Args::parse();
 
     if let Ok(Some(graph)) = input::read_graph_from_file(path.as_str()) {
         let start: Instant = Instant::now();
 
         let (num_colors, coloring) = match algorithm {
-            Algorithm::Genetic => genetic(&graph, 10000, 100, 2, 0.01, 0.2),
-            Algorithm::Grasp => grasp_wrapper(&graph, 10, 5, 5),
-            Algorithm::GraspPR => grasp_path_relinking(&graph, 5),
+            Algorithm::Genetic => genetic(
+                &graph,
+                generations.unwrap_or(10000),
+                population_size.unwrap_or(100),
+                offspring_size.unwrap_or(2),
+                mutation_probaility.unwrap_or(0.01),
+                population_ratio.unwrap_or(0.2),
+            ),
+            Algorithm::Grasp => grasp_wrapper(
+                &graph,
+                grasp_iterations.unwrap_or(10),
+                color_iterations.unwrap_or(5),
+                color_list_size.unwrap_or(5),
+            ),
+            Algorithm::GraspPR => grasp_path_relinking(&graph, pr_solutions.unwrap_or(5)),
         };
 
         let duration: Duration = start.elapsed();
