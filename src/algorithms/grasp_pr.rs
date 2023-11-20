@@ -2,26 +2,33 @@ use super::{count_colors, grasp::grasp, is_coloring_valid, Solution};
 use crate::graph::Graph;
 
 pub fn grasp_path_relinking(graph: &Graph, num_solutions_grasp: usize) -> Solution {
-    let mut solutions = grasp(graph, 10, 5, 5, num_solutions_grasp);
+    let mut solutions = grasp(graph, 10, 5, 5, num_solutions_grasp).into_sorted_vec();
+    solutions.reverse();
     let mut best_solution = solutions.pop().unwrap().clone();
 
     while let Some(solution) = solutions.pop() {
+        // Always follow the current best coloring, instead of using the starting one
         let original_best_coloring = best_solution.1.clone();
-        let mut difference = simmetric_difference(&best_solution.1, &solution.1);
+        let mut difference = simmetric_difference(&original_best_coloring, &solution.1);
         let mut new_coloring = solution.1.clone();
 
         while let Some(vertex) = difference.pop() {
             new_coloring[vertex] = original_best_coloring[vertex];
 
+            let num_colors = count_colors(&new_coloring);
+
+            // Avoid having to check if the coloring is valid (since it's more expensive)
+            // if the number of colors hasn't improved
+            if num_colors < best_solution.0 {
+                continue;
+            }
+
             if !is_coloring_valid(graph, &new_coloring) {
                 continue;
             }
 
-            let num_colors = count_colors(&new_coloring);
-            if num_colors < best_solution.0 {
-                best_solution.0 = num_colors;
-                best_solution.1 = new_coloring.clone();
-            }
+            best_solution.0 = num_colors;
+            best_solution.1 = new_coloring.clone();
         }
 
         // At the end we should have turned `new_coloring` into the `original_best_coloring`
