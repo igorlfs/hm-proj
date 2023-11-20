@@ -1,6 +1,7 @@
 use super::Solution;
 use crate::graph::Graph;
 use rand::seq::SliceRandom;
+use rayon::prelude::*;
 use std::collections::{BinaryHeap, HashSet};
 
 /// Given a `graph`, gets (at most) `n` indexes of the higher degree vertices in the subgraph induced by
@@ -70,41 +71,47 @@ pub fn grasp(
     let max_colors = graph.num_vertices();
     let mut solutions = BinaryHeap::with_capacity(num_solutions);
 
-    for _ in 0..grasp_iterations {
-        let mut num_color_classes = 0;
-        let mut vertex_set: Vec<usize> = (0..max_colors).collect();
-        let mut class_list: Vec<Vec<usize>> = Vec::new();
+    let all: Vec<Solution> = (0..grasp_iterations)
+        .into_par_iter()
+        .map(|_| {
+            let mut num_color_classes = 0;
+            let mut vertex_set: Vec<usize> = (0..max_colors).collect();
+            let mut class_list: Vec<Vec<usize>> = Vec::new();
 
-        class_list.resize(max_colors, Vec::new());
+            class_list.resize(max_colors, Vec::new());
 
-        while !vertex_set.is_empty() {
-            let mut min_num_edges_remaining = usize::MAX;
+            while !vertex_set.is_empty() {
+                let mut min_num_edges_remaining = usize::MAX;
 
-            num_color_classes += 1;
+                num_color_classes += 1;
 
-            for _ in 0..color_iterations {
-                assign_color(
-                    &vertex_set,
-                    color_list_size,
-                    graph,
-                    &mut min_num_edges_remaining,
-                    &mut class_list,
-                    num_color_classes,
-                );
+                for _ in 0..color_iterations {
+                    assign_color(
+                        &vertex_set,
+                        color_list_size,
+                        graph,
+                        &mut min_num_edges_remaining,
+                        &mut class_list,
+                        num_color_classes,
+                    );
+                }
+
+                vertex_set.retain(|vertex| !class_list[num_color_classes - 1].contains(vertex));
             }
 
-            vertex_set.retain(|vertex| !class_list[num_color_classes - 1].contains(vertex));
-        }
+            improve_phase(graph, &mut num_color_classes, &mut class_list);
 
-        improve_phase(graph, &mut num_color_classes, &mut class_list);
+            let coloring = get_coloring_from_class_list(max_colors, &class_list);
+            (num_color_classes, coloring)
+        })
+        .collect();
 
+    for solution in all {
         if solutions.len() < num_solutions {
-            let coloring = get_coloring_from_class_list(max_colors, &class_list);
-            solutions.push((num_color_classes, coloring));
-        } else if num_color_classes < solutions.peek().unwrap().0 {
+            solutions.push(solution);
+        } else if solution.0 < solutions.peek().unwrap().0 {
             solutions.pop();
-            let coloring = get_coloring_from_class_list(max_colors, &class_list);
-            solutions.push((num_color_classes, coloring));
+            solutions.push(solution);
         }
     }
     solutions
