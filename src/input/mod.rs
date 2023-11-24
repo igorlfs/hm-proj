@@ -1,12 +1,12 @@
-use crate::graph::Graph;
+use crate::graph::adj_list::AdjList;
 use std::error::Error;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 
-pub fn read_graph_from_file(filename: &str) -> Result<Option<Graph>, Box<dyn Error>> {
+pub fn read_graph_from_file(filename: &str) -> Result<Option<AdjList>, Box<dyn Error>> {
     let file = File::open(filename)?;
     let reader = BufReader::new(file);
-    let mut graph: Option<Graph> = None;
+    let mut graph: Option<AdjList> = None;
 
     for line in reader.lines().flatten() {
         let splits: Vec<&str> = line.split_whitespace().collect();
@@ -19,7 +19,7 @@ pub fn read_graph_from_file(filename: &str) -> Result<Option<Graph>, Box<dyn Err
             "p" => {
                 if let Some(num_vertices) = splits.get(2) {
                     let num_vertices: usize = num_vertices.parse()?;
-                    graph = Some(Graph::new(num_vertices));
+                    graph = Some(AdjList::new(num_vertices));
                 }
             }
             "e" => {
@@ -27,7 +27,8 @@ pub fn read_graph_from_file(filename: &str) -> Result<Option<Graph>, Box<dyn Err
                     if let Some(graph) = graph.as_mut() {
                         let from = from.parse::<usize>()? - 1;
                         let to = to.parse::<usize>()? - 1;
-                        graph.add_edge(from, to);
+                        graph.adj_list_mut()[from].push(to);
+                        graph.adj_list_mut()[to].push(from);
                     }
                 }
             }

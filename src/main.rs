@@ -3,9 +3,9 @@ mod args;
 mod graph;
 mod input;
 
-use algorithms::grasp::grasp_wrapper;
-use algorithms::{genetic::genetic, grasp_pr::grasp_path_relinking};
-use args::{Algorithm, Args};
+use algorithms::{genetic::genetic, grasp::grasp_wrapper, grasp_pr::grasp_path_relinking};
+use args::Algorithm;
+use args::Args;
 use clap::Parser;
 use std::process;
 use std::time::Instant;
