@@ -29,7 +29,6 @@ fn is_coloring_valid(graph: &AdjList, coloring: &[usize]) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::graph::adj_matrix::AdjMatrix;
 
     #[test]
     fn test_count_colors() {
@@ -41,27 +40,25 @@ mod tests {
 
     #[test]
     fn test_valid_color_assignment() {
-        let mut graph = AdjMatrix::new(4);
+        let mut graph = AdjList::new(4);
         graph.add_edge(0, 1);
         graph.add_edge(0, 2);
         graph.add_edge(1, 2);
         graph.add_edge(2, 3);
 
-        let adj_list = AdjList::from_adj_matrix(&graph);
-        assert!(is_valid_color_assignment(&adj_list, &[1, 2, 3, 1], 2));
-        assert!(!is_valid_color_assignment(&adj_list, &[1, 2, 2, 1], 2));
+        assert!(is_valid_color_assignment(&graph, &[1, 2, 3, 1], 2));
+        assert!(!is_valid_color_assignment(&graph, &[1, 2, 2, 1], 2));
     }
 
     #[test]
     fn test_is_coloring_valid() {
-        let mut graph = AdjMatrix::new(4);
+        let mut graph = AdjList::new(4);
         graph.add_edge(0, 1);
         graph.add_edge(0, 2);
         graph.add_edge(1, 2);
         graph.add_edge(2, 3);
 
-        let adj_list = AdjList::from_adj_matrix(&graph);
-        assert!(is_coloring_valid(&adj_list, &[1, 2, 3, 1]));
-        assert!(!is_coloring_valid(&adj_list, &[1, 2, 2, 1]));
+        assert!(is_coloring_valid(&graph, &[1, 2, 3, 1]));
+        assert!(!is_coloring_valid(&graph, &[1, 2, 2, 1]));
     }
 }

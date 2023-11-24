@@ -1,5 +1,3 @@
-use super::adj_matrix::AdjMatrix;
-
 pub struct AdjList {
     adj_list: Vec<Vec<usize>>,
     num_vertices: usize,
@@ -9,6 +7,23 @@ impl AdjList {
     pub fn new(num_vertices: usize) -> Self {
         let mut adj_list: Vec<Vec<usize>> = Vec::new();
         adj_list.resize(num_vertices, Vec::new());
+        AdjList {
+            num_vertices,
+            adj_list,
+        }
+    }
+
+    #[cfg(test)]
+    pub fn complete(num_vertices: usize) -> Self {
+        let mut adj_list: Vec<Vec<usize>> = Vec::new();
+        adj_list.resize(num_vertices, Vec::new());
+        for (i, v) in adj_list.iter_mut().enumerate() {
+            for j in 0..num_vertices {
+                if i != j {
+                    v.push(j);
+                }
+            }
+        }
         AdjList {
             num_vertices,
             adj_list,
@@ -38,37 +53,20 @@ impl AdjList {
         }
     }
 
+    #[cfg(test)]
     pub fn add_edge(&mut self, u: usize, v: usize) {
         self.adj_list_mut()[u].push(v);
         self.adj_list_mut()[v].push(u);
     }
 
-    pub fn from_adj_matrix(graph: &AdjMatrix) -> Self {
-        let num_vertices = graph.num_vertices();
-        let adj_matrix = graph.adjacency_matrix();
-        let mut adj_list = AdjList::new(num_vertices);
-
-        for (i, v) in adj_matrix.iter().enumerate() {
-            for (j, e) in v.iter().enumerate() {
-                if *e {
-                    adj_list.adj_list_mut()[i].push(j);
-                }
-            }
+    #[cfg(test)]
+    pub fn sub_edge(&mut self, u: usize, v: usize) {
+        if let Some(index) = self.adj_list[u].iter().position(|x| *x == v) {
+            self.adj_list[u].swap_remove(index);
         }
-
-        adj_list
-    }
-
-    pub fn to_adj_matrix(&self) -> AdjMatrix {
-        let mut graph = AdjMatrix::new(self.num_vertices);
-
-        for (i, v) in self.adj_list.iter().enumerate() {
-            for j in v.iter() {
-                graph.add_edge(i, *j);
-            }
+        if let Some(index) = self.adj_list[v].iter().position(|x| *x == u) {
+            self.adj_list[v].swap_remove(index);
         }
-
-        graph
     }
 }
 

@@ -332,7 +332,7 @@ fn count_forbidden_per_vertex(graph: &AdjList, coloring: &[usize], vertex: usize
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{algorithms::is_coloring_valid, graph::adj_matrix::AdjMatrix, input};
+    use crate::{algorithms::is_coloring_valid, input};
 
     #[test]
     fn test_get_n_largest_degree() {
@@ -371,12 +371,11 @@ mod tests {
             panic!("The file containing the test graph is missing")
         }
 
-        let mut graph = AdjMatrix::complete(4);
-        let adj_list = AdjList::from_adj_matrix(&graph);
+        let mut graph = AdjList::complete(4);
 
         // Given the subgraph induce by &[0,1,3] (K3) and the list &[1]
         // The vertices with largest_degree ought to be [0,3] since they share an edge with [1]
-        let largest_degrees = get_n_largest_degree(2, &adj_list, &[0, 1, 3], Some(&[1]));
+        let largest_degrees = get_n_largest_degree(2, &graph, &[0, 1, 3], Some(&[1]));
 
         assert_eq!(largest_degrees, vec![0, 3]);
 
@@ -388,9 +387,8 @@ mod tests {
         //
         // Hence, when we remove an edge outside the induced subgraph,
         // the return value should be updated accordingly
-        graph.remove_edge(0, 2);
-        let adj_list = AdjList::from_adj_matrix(&graph);
-        let largest_degrees = get_n_largest_degree(2, &adj_list, &[0, 1, 3], Some(&[2]));
+        graph.sub_edge(0, 2);
+        let largest_degrees = get_n_largest_degree(2, &graph, &[0, 1, 3], Some(&[2]));
 
         assert_eq!(largest_degrees, vec![1, 3]);
     }
@@ -421,7 +419,7 @@ mod tests {
 
     #[test]
     fn test_improve_phase() {
-        let mut graph = AdjMatrix::new(6);
+        let mut graph = AdjList::new(6);
         graph.add_edge(0, 1);
         graph.add_edge(1, 2);
         graph.add_edge(2, 3);
@@ -431,9 +429,7 @@ mod tests {
         let mut num_classes = 4;
         let mut class_list = vec![vec![1], vec![2], vec![4, 5], vec![0, 3]];
 
-        let adj_list = AdjList::from_adj_matrix(&graph);
-
-        improve_phase(&adj_list, &mut num_classes, &mut class_list);
+        improve_phase(&graph, &mut num_classes, &mut class_list);
 
         assert!(num_classes <= 4);
 
@@ -441,18 +437,16 @@ mod tests {
         // But it should still be valid nonetheless
         let coloring = get_coloring_from_class_list(6, &class_list);
 
-        assert!(is_coloring_valid(&adj_list, &coloring));
+        assert!(is_coloring_valid(&graph, &coloring));
     }
 
     #[test]
     fn test_get_forbidden_vertices() {
         // The complete graph
-        let graph = AdjMatrix::complete(5);
+        let graph = AdjList::complete(5);
         let color_classes = vec![vec![0], vec![1], vec![2, 3, 4]];
 
-        let adj_list = AdjList::from_adj_matrix(&graph);
-
-        let (count, forbidden) = get_forbidden_vertices(&adj_list, &color_classes);
+        let (count, forbidden) = get_forbidden_vertices(&graph, &color_classes);
 
         assert_eq!(forbidden, HashSet::from([2, 3, 4]));
         assert_eq!(count, 3)
@@ -461,14 +455,13 @@ mod tests {
     #[test]
     fn test_local_search() {
         // Basically a linked list colored as 1---2---2---3
-        let mut graph = AdjMatrix::new(4);
+        let mut graph = AdjList::new(4);
         graph.add_edge(0, 1);
         graph.add_edge(1, 2);
         graph.add_edge(2, 3);
         let mut color_classes = vec![vec![0], vec![1, 2], vec![3]];
 
-        let adj_list = AdjList::from_adj_matrix(&graph);
-        let num_forbidden = local_search(&adj_list, &mut color_classes);
+        let num_forbidden = local_search(&graph, &mut color_classes);
 
         assert_eq!(num_forbidden, 0);
     }
@@ -483,11 +476,10 @@ mod tests {
 
     #[test]
     fn test_count_forbidden_per_vertex() {
-        let graph = AdjMatrix::complete(5);
+        let graph = AdjList::complete(5);
         let coloring = [1, 1, 1, 1, 1];
 
-        let adj_list = AdjList::from_adj_matrix(&graph);
-        let num_forbidden = count_forbidden_per_vertex(&adj_list, &coloring, 1);
+        let num_forbidden = count_forbidden_per_vertex(&graph, &coloring, 1);
 
         assert_eq!(num_forbidden, 4);
     }
