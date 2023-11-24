@@ -1,4 +1,4 @@
-use crate::graph::Graph;
+use crate::graph::adj_list::AdjList;
 use std::collections::HashSet;
 
 pub mod genetic;
@@ -8,9 +8,8 @@ pub mod grasp_pr;
 type Solution = (usize, Vec<usize>);
 
 /// Checks if the current color assignment of a node and his neighborhood is valid.
-fn is_valid_color_assignment(graph: &Graph, solution: &[usize], node: usize) -> bool {
-    !graph
-        .get_neighbors(node)
+fn is_valid_color_assignment(graph: &AdjList, solution: &[usize], node: usize) -> bool {
+    !graph.adj_list()[node]
         .iter()
         .any(|x| solution[node] == solution[*x])
 }
@@ -23,14 +22,14 @@ fn count_colors(solution: &[usize]) -> usize {
 }
 
 /// Checks if `coloring` is valid for `graph`.
-fn is_coloring_valid(graph: &Graph, coloring: &[usize]) -> bool {
-    let num_vertices = graph.num_vertices();
-    (0..num_vertices).all(|x| is_valid_color_assignment(graph, coloring, x))
+fn is_coloring_valid(graph: &AdjList, coloring: &[usize]) -> bool {
+    (0..graph.num_vertices()).all(|x| is_valid_color_assignment(graph, coloring, x))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::graph::adj_matrix::AdjMatrix;
 
     #[test]
     fn test_count_colors() {
@@ -42,25 +41,27 @@ mod tests {
 
     #[test]
     fn test_valid_color_assignment() {
-        let mut graph = Graph::new(4);
+        let mut graph = AdjMatrix::new(4);
         graph.add_edge(0, 1);
         graph.add_edge(0, 2);
         graph.add_edge(1, 2);
         graph.add_edge(2, 3);
 
-        assert!(is_valid_color_assignment(&graph, &[1, 2, 3, 1], 2));
-        assert!(!is_valid_color_assignment(&graph, &[1, 2, 2, 1], 2));
+        let adj_list = AdjList::from_adj_matrix(&graph);
+        assert!(is_valid_color_assignment(&adj_list, &[1, 2, 3, 1], 2));
+        assert!(!is_valid_color_assignment(&adj_list, &[1, 2, 2, 1], 2));
     }
 
     #[test]
     fn test_is_coloring_valid() {
-        let mut graph = Graph::new(4);
+        let mut graph = AdjMatrix::new(4);
         graph.add_edge(0, 1);
         graph.add_edge(0, 2);
         graph.add_edge(1, 2);
         graph.add_edge(2, 3);
 
-        assert!(is_coloring_valid(&graph, &[1, 2, 3, 1]));
-        assert!(!is_coloring_valid(&graph, &[1, 2, 2, 1]));
+        let adj_list = AdjList::from_adj_matrix(&graph);
+        assert!(is_coloring_valid(&adj_list, &[1, 2, 3, 1]));
+        assert!(!is_coloring_valid(&adj_list, &[1, 2, 2, 1]));
     }
 }

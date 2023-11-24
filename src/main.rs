@@ -3,12 +3,12 @@ mod args;
 mod graph;
 mod input;
 
-use algorithms::grasp::grasp_wrapper;
-use algorithms::{genetic::genetic, grasp_pr::grasp_path_relinking};
-use args::{Algorithm, Args};
+use algorithms::{genetic::genetic, grasp::grasp_wrapper, grasp_pr::grasp_path_relinking};
+use args::Algorithm;
+use args::Args;
 use clap::Parser;
 use std::process;
-use std::time::{Duration, Instant};
+use std::time::Instant;
 
 fn main() {
     let Args {
@@ -26,7 +26,7 @@ fn main() {
     } = Args::parse();
 
     if let Ok(Some(graph)) = input::read_graph_from_file(path.as_str()) {
-        let start: Instant = Instant::now();
+        let start = Instant::now();
 
         let (num_colors, coloring) = match algorithm {
             Algorithm::Genetic => genetic(
@@ -46,7 +46,7 @@ fn main() {
             Algorithm::GraspPR => grasp_path_relinking(&graph, pr_solutions.unwrap_or(5)),
         };
 
-        let duration: Duration = start.elapsed();
+        let duration = start.elapsed().as_millis();
 
         println!("Number of colors used: {:?}", num_colors);
         println!("Color assignment: {:?}", coloring);
