@@ -1,6 +1,5 @@
 use super::{count_colors, is_valid_color_assignment, Solution};
 use crate::graph::adj_list::AdjList;
-use crate::graph::adj_matrix::AdjMatrix;
 use rand::prelude::SliceRandom;
 use rand::Rng;
 
@@ -36,7 +35,7 @@ fn generate_individual(graph: &AdjList, upper_bound: usize) -> Vec<usize> {
     for i in 0..n {
         individual[i] = rand::thread_rng().gen_range(1..=upper_bound);
 
-        while !is_valid_color_assignment(&graph, &individual, i) {
+        while !is_valid_color_assignment(graph, &individual, i) {
             individual[i] = rand::thread_rng().gen_range(1..=upper_bound);
         }
     }
@@ -61,7 +60,7 @@ fn mutate(
         if rand <= mutation_probability {
             individual[i] = rng.gen_range(1..=upper_bound);
 
-            while !is_valid_color_assignment(&graph, individual, i) {
+            while !is_valid_color_assignment(graph, individual, i) {
                 individual[i] = rng.gen_range(1..=upper_bound);
             }
         }
@@ -110,7 +109,7 @@ fn crossover(graph: &AdjList, p1: Vec<usize>, p2: Vec<usize>) -> Vec<usize> {
     for i in 0..n {
         let mut start_color = 1;
 
-        while !is_valid_color_assignment(&graph, &offspring, i) {
+        while !is_valid_color_assignment(graph, &offspring, i) {
             offspring[i] = start_color;
             start_color += 1;
         }
@@ -138,10 +137,10 @@ pub fn genetic(
     let mut best = graph.num_vertices();
     let mut colors = (1..=best).collect();
     let mut population = Vec::<Solution>::new();
-    let upper_bound = coloring_upper_bound(&graph);
+    let upper_bound = coloring_upper_bound(graph);
 
     for _ in 0..population_size {
-        let individual = generate_individual(&graph, upper_bound);
+        let individual = generate_individual(graph, upper_bound);
         population.push((count_colors(&individual), individual));
     }
 
@@ -151,9 +150,9 @@ pub fn genetic(
         for _ in 0..offsprings_per_generation {
             let (p1, p2) = select(&population, population_size, selected_population_ratio);
 
-            let mut offspring = crossover(&graph, p1, p2);
+            let mut offspring = crossover(graph, p1, p2);
 
-            mutate(&graph, &mut offspring, upper_bound, mutation_probability);
+            mutate(graph, &mut offspring, upper_bound, mutation_probability);
 
             population.push((count_colors(&offspring), offspring));
         }
