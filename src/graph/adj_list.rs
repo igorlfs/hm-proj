@@ -38,6 +38,11 @@ impl AdjList {
         }
     }
 
+    pub fn add_edge(&mut self, u: usize, v: usize) {
+        self.adj_list_mut()[u].push(v);
+        self.adj_list_mut()[v].push(u);
+    }
+
     pub fn from_adj_matrix(graph: &AdjMatrix) -> Self {
         let num_vertices = graph.num_vertices();
         let adj_matrix = graph.adjacency_matrix();

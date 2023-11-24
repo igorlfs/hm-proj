@@ -10,11 +10,11 @@ use rand::Rng;
 /// Determine an upper bound for the number of colors in a graph.
 ///
 /// This upper bound is calculated based on the `Brook's theorem` (i.e., the chromatic number is less or equal than the maximum vertex degree of the graph plus one).
-fn coloring_upper_bound(graph: &AdjMatrix) -> usize {
+fn coloring_upper_bound(graph: &AdjList) -> usize {
     let mut colors = 0;
 
     for i in 0..graph.num_vertices() {
-        let neighborhood_size = graph.get_neighbors(i).len();
+        let neighborhood_size = graph.adj_list()[i].len();
 
         if neighborhood_size + 1 > colors {
             colors = neighborhood_size + 1;
@@ -29,16 +29,14 @@ fn coloring_upper_bound(graph: &AdjMatrix) -> usize {
 /// A solution consists of a vector of size `n`, with `n` being the number of vertices of the graph,
 /// where the `ith position` receives a number between `1` and the `upper bound` for coloring.
 /// This number represents the `color of the ith vertex` in the current solution.
-fn generate_individual(graph: &AdjMatrix, upper_bound: usize) -> Vec<usize> {
+fn generate_individual(graph: &AdjList, upper_bound: usize) -> Vec<usize> {
     let n = graph.num_vertices();
     let mut individual = vec![1; n];
 
     for i in 0..n {
         individual[i] = rand::thread_rng().gen_range(1..=upper_bound);
 
-        let adj_list = AdjList::from_adj_matrix(graph);
-
-        while !is_valid_color_assignment(&adj_list, &individual, i) {
+        while !is_valid_color_assignment(&graph, &individual, i) {
             individual[i] = rand::thread_rng().gen_range(1..=upper_bound);
         }
     }
@@ -49,7 +47,7 @@ fn generate_individual(graph: &AdjMatrix, upper_bound: usize) -> Vec<usize> {
 /// Traverses the solution vector, changing the color of each vertex to a random color
 /// with a probability given by the `mutation_probability` parameter.
 fn mutate(
-    graph: &AdjMatrix,
+    graph: &AdjList,
     individual: &mut [usize],
     upper_bound: usize,
     mutation_probability: f64,
@@ -63,9 +61,7 @@ fn mutate(
         if rand <= mutation_probability {
             individual[i] = rng.gen_range(1..=upper_bound);
 
-            let adj_list = AdjList::from_adj_matrix(graph);
-
-            while !is_valid_color_assignment(&adj_list, individual, i) {
+            while !is_valid_color_assignment(&graph, individual, i) {
                 individual[i] = rng.gen_range(1..=upper_bound);
             }
         }
@@ -101,7 +97,7 @@ fn select(
 /// The crossover strategy implemented is the one-point crossover (i.e., chooses
 /// a random position of the vector and makes the offspring equal to the first parent up to
 /// that position and equal to the second parent from that position onwards.)
-fn crossover(graph: &AdjMatrix, p1: Vec<usize>, p2: Vec<usize>) -> Vec<usize> {
+fn crossover(graph: &AdjList, p1: Vec<usize>, p2: Vec<usize>) -> Vec<usize> {
     let n = graph.num_vertices();
     let mut rng = rand::thread_rng();
     let mut offspring = vec![1; n];
@@ -114,9 +110,7 @@ fn crossover(graph: &AdjMatrix, p1: Vec<usize>, p2: Vec<usize>) -> Vec<usize> {
     for i in 0..n {
         let mut start_color = 1;
 
-        let adj_list = AdjList::from_adj_matrix(graph);
-
-        while !is_valid_color_assignment(&adj_list, &offspring, i) {
+        while !is_valid_color_assignment(&graph, &offspring, i) {
             offspring[i] = start_color;
             start_color += 1;
         }
@@ -141,14 +135,13 @@ pub fn genetic(
     mutation_probability: f64,
     selected_population_ratio: f64,
 ) -> Solution {
-    let adj_matrix = graph.to_adj_matrix();
     let mut best = graph.num_vertices();
     let mut colors = (1..=best).collect();
     let mut population = Vec::<Solution>::new();
-    let upper_bound = coloring_upper_bound(&adj_matrix);
+    let upper_bound = coloring_upper_bound(&graph);
 
     for _ in 0..population_size {
-        let individual = generate_individual(&adj_matrix, upper_bound);
+        let individual = generate_individual(&graph, upper_bound);
         population.push((count_colors(&individual), individual));
     }
 
@@ -158,14 +151,9 @@ pub fn genetic(
         for _ in 0..offsprings_per_generation {
             let (p1, p2) = select(&population, population_size, selected_population_ratio);
 
-            let mut offspring = crossover(&adj_matrix, p1, p2);
+            let mut offspring = crossover(&graph, p1, p2);
 
-            mutate(
-                &adj_matrix,
-                &mut offspring,
-                upper_bound,
-                mutation_probability,
-            );
+            mutate(&graph, &mut offspring, upper_bound, mutation_probability);
 
             population.push((count_colors(&offspring), offspring));
         }
@@ -192,7 +180,7 @@ mod tests {
 
     #[test]
     fn test_coloring_upper_bound() {
-        let mut g1 = AdjMatrix::new(4);
+        let mut g1 = AdjList::new(4);
         g1.add_edge(0, 1);
         g1.add_edge(0, 2);
         g1.add_edge(1, 2);
@@ -201,8 +189,7 @@ mod tests {
         assert_eq!(coloring_upper_bound(&g1), 4);
 
         if let Ok(Some(g2)) = input::read_graph_from_file("data/myc/myciel3.col") {
-            let adj_matrix = g2.to_adj_matrix();
-            assert_eq!(coloring_upper_bound(&adj_matrix), 6);
+            assert_eq!(coloring_upper_bound(&g2), 6);
         } else {
             panic!("The file containing the test graph is missing")
         }
@@ -211,12 +198,11 @@ mod tests {
     #[test]
     fn test_generate_individual() {
         if let Ok(Some(graph)) = input::read_graph_from_file("data/myc/myciel3.col") {
-            let adj_matrix = graph.to_adj_matrix();
-            let upper_bound = coloring_upper_bound(&adj_matrix);
+            let upper_bound = coloring_upper_bound(&graph);
 
             assert_eq!(upper_bound, 6);
 
-            let individual = generate_individual(&adj_matrix, upper_bound);
+            let individual = generate_individual(&graph, upper_bound);
 
             assert!(is_coloring_valid(&graph, &individual));
         } else {
@@ -227,17 +213,16 @@ mod tests {
     #[test]
     fn test_mutate() {
         if let Ok(Some(graph)) = input::read_graph_from_file("data/myc/myciel3.col") {
-            let adj_matrix = graph.to_adj_matrix();
-            let upper_bound = coloring_upper_bound(&adj_matrix);
+            let upper_bound = coloring_upper_bound(&graph);
 
             assert_eq!(upper_bound, 6);
 
-            let mut individual = generate_individual(&adj_matrix, upper_bound);
+            let mut individual = generate_individual(&graph, upper_bound);
 
             assert!(is_coloring_valid(&graph, &individual));
 
             // A little higher mutation probability just to ensure that some vertices actually change
-            mutate(&adj_matrix, &mut individual, upper_bound, 0.2);
+            mutate(&graph, &mut individual, upper_bound, 0.2);
 
             assert!(is_coloring_valid(&graph, &individual));
         } else {
@@ -273,11 +258,10 @@ mod tests {
     fn test_crossover() {
         if let Ok(Some(graph)) = input::read_graph_from_file("data/myc/myciel3.col") {
             let mut population = Vec::new();
-            let adj_matrix = graph.to_adj_matrix();
-            let upper_bound = coloring_upper_bound(&adj_matrix);
+            let upper_bound = coloring_upper_bound(&graph);
 
             for _ in 0..6 {
-                let individual = generate_individual(&adj_matrix, upper_bound);
+                let individual = generate_individual(&graph, upper_bound);
                 population.push((count_colors(&individual), individual));
             }
 
@@ -285,7 +269,7 @@ mod tests {
 
             let (p1, p2) = select(&population, population.len(), 0.2);
 
-            let offspring = crossover(&adj_matrix, p1, p2);
+            let offspring = crossover(&graph, p1, p2);
 
             assert!(is_coloring_valid(&graph, &offspring));
         } else {
@@ -326,10 +310,9 @@ mod tests {
     #[test]
     fn test_genetic() {
         if let Ok(Some(graph)) = input::read_graph_from_file("data/myc/myciel3.col") {
-            let adj_matrix = graph.to_adj_matrix();
             let (best, colors) = genetic(&graph, 10000, 100, 2, 0.01, 0.2);
 
-            assert!(best <= coloring_upper_bound(&adj_matrix));
+            assert!(best <= coloring_upper_bound(&graph));
 
             assert!(is_coloring_valid(&graph, &colors));
         } else {
