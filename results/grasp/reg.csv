@@ -1,0 +1,15 @@
+instance,num_colors,time,GIter,CIter,CSize
+fpsol2.i.1.col,65,39191,25,25,3
+fpsol2.i.2.col,30,24201,25,25,3
+fpsol2.i.3.col,30,21635,25,25,3
+inithx.i.1.col,54,152841,25,25,3
+inithx.i.2.col,31,69483,25,25,3
+inithx.i.3.col,31,60075,25,25,3
+mulsol.i.1.col,49,3400,25,25,3
+mulsol.i.2.col,31,2673,25,25,3
+mulsol.i.3.col,31,2572,25,25,3
+mulsol.i.4.col,31,2627,25,25,3
+mulsol.i.5.col,31,2708,25,25,3
+zeroin.i.1.col,49,3589,25,25,3
+zeroin.i.2.col,30,2747,25,25,3
+zeroin.i.3.col,30,2719,25,25,3
