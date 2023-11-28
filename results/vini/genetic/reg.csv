@@ -1,0 +1,15 @@
+instance,num_colors,time,generations,population_size,offspring_size,mutation_probaility,population_ratio
+fpsol2.i.1.col,106,44834,80000,100,2,0.01,0.2
+fpsol2.i.2.col,102,42783,80000,100,2,0.01,0.2
+fpsol2.i.3.col,98,43640,80000,100,2,0.01,0.2
+inithx.i.1.col,208,103108,80000,100,2,0.01,0.2
+inithx.i.2.col,165,74899,80000,100,2,0.01,0.2
+inithx.i.3.col,161,18241,80000,100,2,0.01,0.2
+mulsol.i.1.col,50,7528,80000,100,2,0.01,0.2
+mulsol.i.2.col,34,11280,80000,100,2,0.01,0.2
+mulsol.i.3.col,33,16514,80000,100,2,0.01,0.2
+mulsol.i.4.col,33,15417,80000,100,2,0.01,0.2
+mulsol.i.5.col,35,7155,80000,100,2,0.01,0.2
+zeroin.i.1.col,51,17367,80000,100,2,0.01,0.2
+zeroin.i.2.col,33,7710,80000,100,2,0.01,0.2
+zeroin.i.3.col,34,7581,80000,100,2,0.01,0.2

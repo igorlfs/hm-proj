@@ -1,0 +1,6 @@
+instance,num_colors,time,generations,population_size,offspring_size,mutation_probaility,population_ratio
+myciel3.col,4,1799,80000,100,2,0.01,0.2
+myciel4.col,5,2039,80000,100,2,0.01,0.2
+myciel5.col,6,2554,80000,100,2,0.01,0.2
+myciel6.col,7,4296,80000,100,2,0.01,0.2
+myciel7.col,11,9231,80000,100,2,0.01,0.2

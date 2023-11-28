@@ -1,0 +1,11 @@
+instance,num_colors,time,generations,population_size,offspring_size,mutation_probaility,population_ratio
+anna.col,12,9649,80000,100,2,0.01,0.2
+david.col,12,3625,80000,100,2,0.01,0.2
+games120.col,9,4607,80000,100,2,0.01,0.2
+huck.col,11,3061,80000,100,2,0.01,0.2
+jean.col,10,3428,80000,100,2,0.01,0.2
+miles1000.col,43,6384,80000,100,2,0.01,0.2
+miles1500.col,73,7551,80000,100,2,0.01,0.2
+miles250.col,9,4911,80000,100,2,0.01,0.2
+miles500.col,23,5223,80000,100,2,0.01,0.2
+miles750.col,33,5838,80000,100,2,0.01,0.2
