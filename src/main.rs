@@ -43,7 +43,7 @@ fn main() {
                 color_iterations.unwrap_or(25),
                 color_list_size.unwrap_or(3),
             ),
-            Algorithm::GraspPR => grasp_path_relinking(&graph, pr_solutions.unwrap_or(5)),
+            Algorithm::GraspPR => grasp_path_relinking(&graph, pr_solutions.unwrap_or(10)),
         };
 
         let duration = start.elapsed().as_millis();
