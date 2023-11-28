@@ -2,7 +2,7 @@ use super::{count_colors, grasp::grasp, is_coloring_valid, Solution};
 use crate::graph::adj_list::AdjList;
 
 pub fn grasp_path_relinking(graph: &AdjList, num_solutions_grasp: usize) -> Solution {
-    let mut solutions = grasp(graph, 10, 5, 5, num_solutions_grasp).into_sorted_vec();
+    let mut solutions = grasp(graph, 25, 25, 3, num_solutions_grasp).into_sorted_vec();
     solutions.reverse();
     let mut best_solution = solutions.pop().unwrap().clone();
 
