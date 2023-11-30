@@ -25,8 +25,8 @@ pub fn read_graph_from_file(filename: &str) -> Result<Option<AdjList>, Box<dyn E
             "e" => {
                 if let (Some(from), Some(to)) = (splits.get(1), splits.get(2)) {
                     if let Some(graph) = graph.as_mut() {
-                        let from = from.parse::<usize>()?;
-                        let to = to.parse::<usize>()?;
+                        let from = from.parse::<usize>()? - 1;
+                        let to = to.parse::<usize>()? - 1;
                         graph.adj_list_mut()[from].push(to);
                         graph.adj_list_mut()[to].push(from);
                     }
