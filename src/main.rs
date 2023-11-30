@@ -31,7 +31,7 @@ fn main() {
         let (num_colors, coloring) = match algorithm {
             Algorithm::Genetic => genetic(
                 &graph,
-                generations.unwrap_or(10000),
+                generations.unwrap_or(80000),
                 population_size.unwrap_or(100),
                 offspring_size.unwrap_or(2),
                 mutation_probaility.unwrap_or(0.01),
@@ -39,11 +39,11 @@ fn main() {
             ),
             Algorithm::Grasp => grasp_wrapper(
                 &graph,
-                grasp_iterations.unwrap_or(10),
-                color_iterations.unwrap_or(5),
-                color_list_size.unwrap_or(5),
+                grasp_iterations.unwrap_or(25),
+                color_iterations.unwrap_or(25),
+                color_list_size.unwrap_or(3),
             ),
-            Algorithm::GraspPR => grasp_path_relinking(&graph, pr_solutions.unwrap_or(5)),
+            Algorithm::GraspPR => grasp_path_relinking(&graph, pr_solutions.unwrap_or(10)),
         };
 
         let duration = start.elapsed().as_millis();
