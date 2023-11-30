@@ -25,15 +25,8 @@ pub fn read_graph_from_file(filename: &str) -> Result<Option<AdjList>, Box<dyn E
             "e" => {
                 if let (Some(from), Some(to)) = (splits.get(1), splits.get(2)) {
                     if let Some(graph) = graph.as_mut() {
-                        let mut from = from.parse::<usize>()?;
-                        let mut to = to.parse::<usize>()?;
-
-                        // workaround pra mapear as instâncias 1-based para 0-basesd quando o arquivo não foi gerado aleatoriamente
-                        if !filename.contains("random") {
-                            from -= 1;
-                            to -= 1;
-                        }
-
+                        let from = from.parse::<usize>()?;
+                        let to = to.parse::<usize>()?;
                         graph.adj_list_mut()[from].push(to);
                         graph.adj_list_mut()[to].push(from);
                     }
