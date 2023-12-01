@@ -21,7 +21,7 @@ fn main() {
         for j in i + 1..num_vertices {
             if rand::thread_rng().gen::<f32>() < THRESHOLD {
                 num_edges += 1;
-                edges.push((i, j));
+                edges.push((i + 1, j + 1));
             }
         }
     }
